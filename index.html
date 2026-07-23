@@ -95,6 +95,17 @@
     </div>
 </div>
 
+<!-- MODAL RESPOSTAS PARTICIPANTE -->
+<div id="modalPResp" class="modal-bg" style="display:none" onclick="if(event.target===this)closeParticipantModal()">
+    <div class="modal-box" style="max-width:980px;max-height:88vh;overflow-y:auto;text-align:left;padding:24px">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="pRespTitle" class="text-xl font-bold">Respostas do Participante</h3>
+            <button type="button" onclick="closeParticipantModal()" class="btn-s text-xs py-1 px-3">Fechar</button>
+        </div>
+        <div id="pRespBody"></div>
+    </div>
+</div>
+
 <!-- INICIAL -->
 <div id="sLanding" class="screen active">
     <div class="min-h-screen flex flex-col" style="background:linear-gradient(180deg,#fff 0%,var(--bg) 100%)">
@@ -471,17 +482,147 @@ function chkPass(){
     else{toast('Senha incorreta','err');$('passIn').value='';$('passIn').focus();$('passIn').style.borderColor='var(--err)';setTimeout(function(){$('passIn').style.borderColor=''},1500)}
 }
 
+function getConfiguredCaseIndexes(){
+    var out=[];
+    for(var i=0;i<cases.length;i++)if(cases[i]&&cases[i].title&&cases[i].title.trim())out.push(i);
+    return out;
+}
+
+function scoreQuestion(q,ans){
+    var text=(ans||'').trim().toLowerCase();
+    var kws=pKW(q&&q.kw?q.kw:'');
+    var found=0;
+    var kwa=kws.map(function(k){
+        var ok=text.indexOf(k)!==-1;
+        if(ok)found++;
+        return{w:k,f:ok};
+    });
+    var pct=kws.length>0?Math.round((found/kws.length)*100):(text?50:0);
+    return{pct:pct,found:found,total:kws.length,kwa:kwa};
+}
+
+function calcParticipantMetrics(ansObj){
+    var totalScore=0,totalCount=0,totalFound=0,totalKw=0;
+    var byCase={};
+    var caseIdx=getConfiguredCaseIndexes();
+    caseIdx.forEach(function(ci){
+        var c=cases[ci];
+        var caseScore=0,caseCount=0,caseFound=0,caseKw=0;
+        c.qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            var ans=(ansObj&&ansObj[ci]&&typeof ansObj[ci][qi]==='string')?ansObj[ci][qi]:'';
+            var sc=scoreQuestion(q,ans);
+            caseScore+=sc.pct;
+            caseCount++;
+            caseFound+=sc.found;
+            caseKw+=sc.total;
+        });
+        byCase[ci]={
+            pct:caseCount?Math.round(caseScore/caseCount):0,
+            found:caseFound,
+            totalKw:caseKw,
+            qCount:caseCount
+        };
+        totalScore+=caseScore;
+        totalCount+=caseCount;
+        totalFound+=caseFound;
+        totalKw+=caseKw;
+    });
+    return{
+        overallPct:totalCount?Math.round(totalScore/totalCount):0,
+        found:totalFound,
+        totalKw:totalKw,
+        byCase:byCase
+    };
+}
+
+function pctTone(pct){
+    if(pct>=75)return'var(--ok)';
+    if(pct>=45)return'var(--warn)';
+    return'var(--err)';
+}
+
+function closeParticipantModal(){
+    var el=$('modalPResp');
+    if(el)el.style.display='none';
+}
+
+function adminViewParticipant(key){
+    var p=adminByKey[key];
+    if(!p){toast('Participante nao encontrado','err');return}
+    $('pRespTitle').textContent='Respostas de '+(p.name||'Participante');
+
+    var totalQ=getTotalQuestions();
+    var tone=pctTone(p.scorePct);
+    var h='';
+    h+='<div class="flex flex-wrap gap-2 mb-4">';
+    h+='<span class="badge" style="background:var(--pri-l);color:var(--pri)">'+p.answered+'/'+totalQ+' respostas</span>';
+    h+='<span class="badge" style="background:'+tone+'18;color:'+tone+'">Assertividade '+p.scorePct+'%</span>';
+    if(p.metrics&&p.metrics.totalKw>0)h+='<span class="badge" style="background:var(--bg2);color:var(--txt2)">'+p.metrics.found+'/'+p.metrics.totalKw+' palavras-chave encontradas</span>';
+    h+='</div>';
+
+    var caseIdx=getConfiguredCaseIndexes();
+    if(!caseIdx.length){
+        h+='<div class="p-4 rounded-lg text-sm" style="background:var(--bg);border:1px solid var(--bdr-l);color:var(--muted)">Nenhum caso configurado para comparar respostas.</div>';
+        $('pRespBody').innerHTML=h;
+        $('modalPResp').style.display='flex';
+        return;
+    }
+
+    caseIdx.forEach(function(ci){
+        var c=cases[ci];
+        var m=(p.byCase&&p.byCase[ci])?p.byCase[ci]:{pct:0,found:0,totalKw:0,qCount:0};
+        var caseTone=pctTone(m.pct);
+        h+='<div class="card mb-4">';
+        h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-3">';
+        h+='<div><p class="text-xs font-bold tracking-wide" style="color:var(--pri)">CASO '+(ci+1)+'</p><p class="font-semibold text-sm">'+esc(c.title||('Caso '+(ci+1)))+'</p></div>';
+        h+='<div class="text-xs"><span class="badge" style="background:'+caseTone+'18;color:'+caseTone+'">'+m.pct+'%</span></div>';
+        h+='</div>';
+
+        var hasAny=false;
+        c.qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            hasAny=true;
+            var ans=(p.answers&&p.answers[ci]&&typeof p.answers[ci][qi]==='string')?p.answers[ci][qi]:'';
+            var sc=scoreQuestion(q,ans);
+            var qTone=pctTone(sc.pct);
+            h+='<div class="p-3 rounded-lg mb-3" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2"><p class="text-sm font-semibold">Pergunta '+(qi+1)+'</p><span class="badge" style="background:'+qTone+'18;color:'+qTone+'">'+sc.pct+'%</span></div>';
+            h+='<p class="text-sm mb-3" style="color:var(--txt2)">'+esc(q.text)+'</p>';
+            h+='<div class="resp-grid">';
+            h+='<div><p class="label mb-2">Resposta do Participante</p><div class="p-3 rounded-lg text-sm" style="background:#fff;border:1px solid var(--bdr-l);white-space:pre-line">'+(ans.trim()?esc(ans):'<span style="color:var(--muted);font-style:italic">Sem resposta</span>')+'</div></div>';
+            h+='<div><p class="label mb-2">Resposta de Referencia</p><div class="p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line">'+esc(q.ref||'')+'</div></div>';
+            h+='</div>';
+            if(sc.total>0){
+                h+='<div class="mt-2 text-xs" style="color:var(--muted)">Palavras-chave: '+sc.found+'/'+sc.total+'</div>';
+                h+='<div class="mt-2 flex flex-wrap gap-1">';
+                sc.kwa.forEach(function(k){h+='<span class="kw-tag '+(k.f?'kw-found':'kw-miss')+'">'+(k.f?'\u2713 ':'\u2717 ')+esc(k.w)+'</span>'});
+                h+='</div>';
+            }
+            h+='</div>';
+        });
+        if(!hasAny)h+='<p class="text-sm" style="color:var(--muted)">Sem perguntas ativas neste caso.</p>';
+        h+='</div>';
+    });
+
+    $('pRespBody').innerHTML=h;
+    $('modalPResp').style.display='flex';
+}
+
 function renAdminSummary(){
     var totalQ=getTotalQuestions();
     var totalP=adminParticipants.length;
     var totalA=0;
     adminParticipants.forEach(function(p){totalA+=p.answered});
+    var avgAcc=totalP?Math.round(adminParticipants.reduce(function(sum,p){return sum+(p.scorePct||0)},0)/totalP):0;
+    var caseIdx=getConfiguredCaseIndexes();
     var h='';
     h+='<div class="flex flex-wrap items-center justify-between gap-3 mb-4">';
-    h+='<div><h3 class="text-lg font-bold">Resumo de Participantes</h3><p class="text-xs" style="color:var(--muted)">Visualize quem respondeu e remova usuários para reutilizar o sistema.</p></div>';
+    h+='<div><h3 class="text-lg font-bold">Resumo de Participantes</h3><p class="text-xs" style="color:var(--muted)">Visualize respostas, compare assertividade e remova usuarios para reutilizar o sistema.</p></div>';
     h+='<div class="flex gap-2">';
     h+='<span class="badge" style="background:var(--pri-l);color:var(--pri)">'+totalP+' participante(s)</span>';
     h+='<span class="badge" style="background:var(--acc-l);color:var(--acc)">'+totalA+' resposta(s)</span>';
+    h+='<span class="badge" style="background:var(--bg2);color:var(--txt2)">Media assertividade '+avgAcc+'%</span>';
     h+='</div></div>';
 
     if(adminLoading){
@@ -500,16 +641,45 @@ function renAdminSummary(){
     adminParticipants.forEach(function(p){
         var pct=totalQ>0?Math.round((p.answered/totalQ)*100):0;
         if(pct>100)pct=100;
+        var tone=pctTone(p.scorePct||0);
         h+='<div class="p-4 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)">';
         h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2">';
         h+='<div><p class="font-semibold text-sm">'+esc(p.name)+'</p><p class="text-xs" style="color:var(--muted)">Atualizado em '+esc(fmtDate(p.updatedAt))+'</p></div>';
-        h+='<button type="button" onclick="adminDeleteParticipant(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">Apagar Usuário</button>';
+        h+='<div class="flex gap-2">';
+        h+='<button type="button" onclick="adminViewParticipant(\''+esc(p.key)+'\')" class="btn-s text-xs py-1 px-2">Ver Respostas</button>';
+        h+='<button type="button" onclick="adminDeleteParticipant(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">Apagar Usuario</button>';
         h+='</div>';
-        h+='<div class="flex items-center justify-between text-xs mb-2"><span style="color:var(--muted)">'+p.answered+'/'+totalQ+' respostas</span><span style="color:var(--pri)">'+pct+'%</span></div>';
+        h+='</div>';
+        h+='<div class="flex items-center justify-between text-xs mb-2"><span style="color:var(--muted)">'+p.answered+'/'+totalQ+' respostas</span><span style="color:'+tone+'">Assertividade '+(p.scorePct||0)+'%</span></div>';
         h+='<div class="pbar"><div class="pfill" style="width:'+pct+'%"></div></div>';
         h+='</div>';
     });
     h+='</div>';
+
+    if(caseIdx.length){
+        h+='<div class="mt-6">';
+        h+='<h4 class="text-sm font-bold mb-2">Matriz de Assertividade por Participante</h4>';
+        h+='<div class="text-xs mb-3" style="color:var(--muted)">Percentual por participante (geral e por caso), calculado por palavras-chave das perguntas.</div>';
+        h+='<div style="overflow:auto;border:1px solid var(--bdr-l);border-radius:8px;background:#fff">';
+        h+='<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:760px">';
+        h+='<thead><tr style="background:var(--bg)"><th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Participante</th><th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Geral</th>';
+        caseIdx.forEach(function(ci){h+='<th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Caso '+(ci+1)+'</th>'});
+        h+='</tr></thead><tbody>';
+        adminParticipants.forEach(function(p){
+            var t0=pctTone(p.scorePct||0);
+            h+='<tr>';
+            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l)"><button type="button" onclick="adminViewParticipant(\''+esc(p.key)+'\')" style="color:var(--pri);font-weight:600;text-decoration:underline;background:none;border:none;cursor:pointer">'+esc(p.name)+'</button></td>';
+            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l)"><span class="badge" style="background:'+t0+'18;color:'+t0+'">'+(p.scorePct||0)+'%</span></td>';
+            caseIdx.forEach(function(ci){
+                var cm=(p.byCase&&p.byCase[ci])?p.byCase[ci]:{pct:0};
+                var tc=pctTone(cm.pct||0);
+                h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l)"><span class="badge" style="background:'+tc+'18;color:'+tc+'">'+(cm.pct||0)+'%</span></td>';
+            });
+            h+='</tr>';
+        });
+        h+='</tbody></table></div></div>';
+    }
+
     $('aSummary').innerHTML=h;
 }
 
@@ -520,11 +690,17 @@ async function loadAdminParticipants(){
     var list=[];
     Object.keys(data||{}).forEach(function(key){
         var item=data[key]||{};
+        var ans=(item.answers_json&&typeof item.answers_json==='object')?item.answers_json:{};
+        var metrics=calcParticipantMetrics(ans);
         list.push({
             key:key,
             name:item.participant_name||'Sem nome',
-            answered:getAnsweredCount(item.answers_json),
-            updatedAt:item.updated_at||''
+            answered:getAnsweredCount(ans),
+            updatedAt:item.updated_at||'',
+            answers:ans,
+            scorePct:metrics.overallPct,
+            byCase:metrics.byCase,
+            metrics:metrics
         });
     });
     list.sort(function(a,b){
