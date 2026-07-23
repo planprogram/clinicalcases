@@ -116,7 +116,7 @@
                     <span class="text-xs font-semibold tracking-wide" style="color:var(--acc)">ACESSAR →</span>
                 </div>
             </div>
-            <p class="mt-12 text-xs" style="color:var(--muted)">Dados armazenados localmente. Admin e participante devem usar o mesmo navegador.</p>
+            <p id="storageHint" class="mt-12 text-xs" style="color:var(--muted)">Dados armazenados localmente. Admin e participante devem usar o mesmo navegador.</p>
         </div>
     </div>
 </div>
@@ -131,11 +131,13 @@
                 <span class="text-sm font-semibold" style="color:var(--pri);font-family:Playfair Display,serif">Painel Administrativo</span>
             </div>
             <div class="flex gap-2">
+                <button type="button" onclick="loadAdminParticipants()" class="btn-s text-xs py-2 px-3">Atualizar Resumo</button>
                 <button type="button" onclick="resetAll()" class="btn-d text-xs">Limpar Tudo</button>
                 <button type="button" onclick="saveAll()" class="btn-p text-xs py-2 px-5">Salvar Casos</button>
             </div>
         </div>
     </header>
+    <div class="max-w-6xl mx-auto px-4 md:px-6 pt-5"><div id="aSummary" class="card"></div></div>
     <div class="max-w-6xl mx-auto px-4 md:px-6 pt-5"><div id="aTabs" class="flex gap-1 overflow-x-auto pb-0"></div></div>
     <div class="max-w-6xl mx-auto px-4 md:px-6 pb-10"><div id="aBody" class="card" style="border-radius:0 10px 10px 10px;min-height:500px"></div></div>
 </div>
@@ -195,6 +197,9 @@
 <script>
 var cases=[],aTab=0,pName='',pAns={},vCase=-1;
 var MAX_Q=5,PASS='medartis@2026';
+var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
+var useRemote=false;
+var adminParticipants=[],adminByKey={},adminLoading=false;
 
 function $(i){return document.getElementById(i)}
 function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');window.scrollTo(0,0)}
@@ -207,54 +212,305 @@ function toast(m,t){
     setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3500);
 }
 
-/* Segurança LocalStorage (Evita erros em file://) */
-function getLs(k){try{return localStorage.getItem(k)}catch(e){return null}}
-function setLs(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
-function rmLs(k){try{localStorage.removeItem(k)}catch(e){return false}}
+function fmtDate(iso){
+    if(!iso)return 'Sem data';
+    var d=new Date(iso);
+    if(isNaN(d.getTime()))return 'Sem data';
+    return d.toLocaleString('pt-BR');
+}
+
+function getTotalQuestions(){
+    var total=0;
+    cases.forEach(function(c){
+        if(!c.title||!c.title.trim())return;
+        c.qs.forEach(function(q){if(q.text&&q.text.trim())total++});
+    });
+    return total;
+}
+
+function getAnsweredCount(ans){
+    var count=0;
+    if(!ans||typeof ans!=='object')return 0;
+    Object.keys(ans).forEach(function(ci){
+        var perCase=ans[ci];
+        if(!perCase||typeof perCase!=='object')return;
+        Object.keys(perCase).forEach(function(qi){
+            var txt=perCase[qi];
+            if(typeof txt==='string'&&txt.trim())count++;
+        });
+    });
+    return count;
+}
+
+function updateStorageHint(){
+    var el=$('storageHint');
+    if(!el)return;
+    el.textContent=useRemote
+        ?'Dados armazenados em nuvem (Firebase Realtime Database). Admin e participante podem usar dispositivos diferentes.'
+        :'Banco remoto indisponível. Verifique a configuração do Firebase.';
+}
+
+function initDb(){
+    if(!FB_DB_URL){
+        useRemote=false;
+        updateStorageHint();
+        return;
+    }
+    try{
+        FB_DB_URL=FB_DB_URL.replace(/\/+$/,'');
+        useRemote=true;
+    }catch(e){
+        console.error('Falha ao iniciar Firebase:',e);
+        useRemote=false;
+    }
+    updateStorageHint();
+}
+
+function fbKeyFromName(name){
+    if(!name)return'';
+    var bytes=new TextEncoder().encode(name.trim().toLowerCase());
+    var bin='';
+    bytes.forEach(function(b){bin+=String.fromCharCode(b)});
+    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+async function dbReq(path,method,body){
+    if(!useRemote||!FB_DB_URL)throw new Error('Firebase não configurado');
+    var opts={method:method||'GET',headers:{}};
+    if(body!==undefined){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}
+    var res=await fetch(FB_DB_URL+'/'+path+'.json',opts);
+    if(!res.ok){
+        var txt='';
+        try{txt=await res.text()}catch(e){}
+        throw new Error('Firebase '+res.status+(txt?(' - '+txt):''));
+    }
+    return res.json();
+}
+
+async function dbLoadCases(){
+    if(!useRemote)return null;
+    try{
+        var data=await dbReq('app_state/global','GET');
+        if(Array.isArray(data))return data;
+        if(data&&Array.isArray(data.cases_json))return data.cases_json;
+    }catch(e){
+        console.error('Erro ao carregar casos (firebase):',e);
+    }
+    return null;
+}
+
+async function dbSaveCases(nextCases){
+    if(!useRemote)return false;
+    try{
+        await dbReq('app_state/global','PUT',{
+            cases_json:nextCases,
+            updated_at:new Date().toISOString()
+        });
+        return true;
+    }catch(e){
+        console.error('Erro ao salvar casos (firebase):',e);
+        return false;
+    }
+}
+
+async function dbLoadAnswers(name){
+    if(!useRemote||!name)return null;
+    var key=fbKeyFromName(name);
+    try{
+        var data=await dbReq('participant_answers/'+key,'GET');
+        if(data&&typeof data.answers_json==='object'&&data.answers_json)return data.answers_json;
+        return {};
+    }catch(e){
+        console.error('Erro ao carregar respostas (firebase):',e);
+        return null;
+    }
+}
+
+async function dbSaveAnswers(name,answers){
+    if(!useRemote||!name)return false;
+    var key=fbKeyFromName(name);
+    try{
+        await dbReq('participant_answers/'+key,'PUT',{
+            participant_name:name,
+            answers_json:answers,
+            updated_at:new Date().toISOString()
+        });
+        return true;
+    }catch(e){
+        console.error('Erro ao salvar respostas (firebase):',e);
+        return false;
+    }
+}
+
+async function dbDeleteAnswers(name){
+    if(!useRemote||!name)return false;
+    var key=fbKeyFromName(name);
+    try{
+        await dbReq('participant_answers/'+key,'DELETE');
+        return true;
+    }catch(e){
+        console.error('Erro ao remover respostas (firebase):',e);
+        return false;
+    }
+}
+
+async function dbDeleteAnswersByKey(key){
+    if(!useRemote||!key)return false;
+    try{
+        await dbReq('participant_answers/'+key,'DELETE');
+        return true;
+    }catch(e){
+        console.error('Erro ao remover respostas (firebase):',e);
+        return false;
+    }
+}
+
+async function dbLoadAllAnswers(){
+    if(!useRemote)return {};
+    try{
+        var data=await dbReq('participant_answers','GET');
+        return data&&typeof data==='object'?data:{};
+    }catch(e){
+        console.error('Erro ao carregar lista de participantes:',e);
+        return {};
+    }
+}
+
+function normalizeCases(){
+    if(!Array.isArray(cases)||cases.length!==5){cases=[];for(var i=0;i<5;i++)cases.push(mkC())}
+    cases.forEach(function(c){
+        if(!Array.isArray(c.qs)||c.qs.length===0)c.qs=[mkQ()];
+        c.qs.forEach(function(q){
+            if(typeof q.text!=='string')q.text='';
+            if(typeof q.ref!=='string')q.ref='';
+            if(typeof q.kw!=='string')q.kw='';
+            if(typeof q.expl!=='string')q.expl='';
+        });
+    });
+}
 
 /* Senha */
 function openPass(){$('modalPass').style.display='flex';$('passIn').value='';setTimeout(function(){$('passIn').focus()},150)}
 function closePass(){$('modalPass').style.display='none'}
 function chkPass(){
-    if($('passIn').value===PASS){closePass();aTab=0;renATabs();renABody();show('sAdmin');toast('Bem-vindo ao painel administrativo','ok')}
+    if($('passIn').value===PASS){closePass();aTab=0;renATabs();renABody();renAdminSummary();show('sAdmin');loadAdminParticipants();toast('Bem-vindo ao painel administrativo','ok')}
     else{toast('Senha incorreta','err');$('passIn').value='';$('passIn').focus();$('passIn').style.borderColor='var(--err)';setTimeout(function(){$('passIn').style.borderColor=''},1500)}
+}
+
+function renAdminSummary(){
+    var totalQ=getTotalQuestions();
+    var totalP=adminParticipants.length;
+    var totalA=0;
+    adminParticipants.forEach(function(p){totalA+=p.answered});
+    var h='';
+    h+='<div class="flex flex-wrap items-center justify-between gap-3 mb-4">';
+    h+='<div><h3 class="text-lg font-bold">Resumo de Participantes</h3><p class="text-xs" style="color:var(--muted)">Visualize quem respondeu e remova usuários para reutilizar o sistema.</p></div>';
+    h+='<div class="flex gap-2">';
+    h+='<span class="badge" style="background:var(--pri-l);color:var(--pri)">'+totalP+' participante(s)</span>';
+    h+='<span class="badge" style="background:var(--acc-l);color:var(--acc)">'+totalA+' resposta(s)</span>';
+    h+='</div></div>';
+
+    if(adminLoading){
+        h+='<div class="p-4 rounded-lg text-sm" style="background:var(--bg);border:1px solid var(--bdr-l);color:var(--muted)">Carregando participantes...</div>';
+        $('aSummary').innerHTML=h;
+        return;
+    }
+
+    if(!totalP){
+        h+='<div class="p-6 rounded-lg text-sm" style="background:var(--bg);border:1px solid var(--bdr-l);color:var(--muted)">Nenhum participante com respostas salvas no banco.</div>';
+        $('aSummary').innerHTML=h;
+        return;
+    }
+
+    h+='<div class="space-y-3">';
+    adminParticipants.forEach(function(p){
+        var pct=totalQ>0?Math.round((p.answered/totalQ)*100):0;
+        if(pct>100)pct=100;
+        h+='<div class="p-4 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+        h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2">';
+        h+='<div><p class="font-semibold text-sm">'+esc(p.name)+'</p><p class="text-xs" style="color:var(--muted)">Atualizado em '+esc(fmtDate(p.updatedAt))+'</p></div>';
+        h+='<button type="button" onclick="adminDeleteParticipant(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">Apagar Usuário</button>';
+        h+='</div>';
+        h+='<div class="flex items-center justify-between text-xs mb-2"><span style="color:var(--muted)">'+p.answered+'/'+totalQ+' respostas</span><span style="color:var(--pri)">'+pct+'%</span></div>';
+        h+='<div class="pbar"><div class="pfill" style="width:'+pct+'%"></div></div>';
+        h+='</div>';
+    });
+    h+='</div>';
+    $('aSummary').innerHTML=h;
+}
+
+async function loadAdminParticipants(){
+    adminLoading=true;
+    renAdminSummary();
+    var data=await dbLoadAllAnswers();
+    var list=[];
+    Object.keys(data||{}).forEach(function(key){
+        var item=data[key]||{};
+        list.push({
+            key:key,
+            name:item.participant_name||'Sem nome',
+            answered:getAnsweredCount(item.answers_json),
+            updatedAt:item.updated_at||''
+        });
+    });
+    list.sort(function(a,b){
+        var da=new Date(a.updatedAt||0).getTime()||0;
+        var db=new Date(b.updatedAt||0).getTime()||0;
+        return db-da;
+    });
+    adminParticipants=list;
+    adminByKey={};
+    adminParticipants.forEach(function(p){adminByKey[p.key]=p});
+    adminLoading=false;
+    renAdminSummary();
+}
+
+async function adminDeleteParticipant(key){
+    var p=adminByKey[key];
+    var name=p&&p.name?p.name:'este participante';
+    if(!confirm('Apagar respostas de '+name+'?'))return;
+    if(!await dbDeleteAnswersByKey(key)){
+        toast('Erro ao apagar usuário no banco','err');
+        return;
+    }
+    toast('Usuário removido com sucesso','ok');
+    await loadAdminParticipants();
 }
 
 /* Dados */
 function mkQ(){return{text:'',ref:'',kw:'',expl:''}}
 function mkC(){return{title:'',img:'',desc:'',qs:[mkQ()]}}
-function initCases(){
+async function initCases(){
     try {
-        var s=getLs('med_v4');if(s){try{cases=JSON.parse(s)}catch(e){cases=[]}}
-        if(!Array.isArray(cases)||cases.length!==5){cases=[];for(var i=0;i<5;i++)cases.push(mkC())}
-        cases.forEach(function(c){
-            if(!Array.isArray(c.qs)||c.qs.length===0)c.qs=[mkQ()];
-            c.qs.forEach(function(q){
-                if(typeof q.text!=='string')q.text='';
-                if(typeof q.ref!=='string')q.ref='';
-                if(typeof q.kw!=='string')q.kw='';
-                if(typeof q.expl!=='string')q.expl='';
-            });
-        });
+        var remote=await dbLoadCases();
+        if(Array.isArray(remote)){cases=remote;normalizeCases();return}
+        cases=[];
+        normalizeCases();
     } catch(e) {
         console.error("Erro ao inicializar casos:", e);
         cases=[];for(var i=0;i<5;i++)cases.push(mkC());
     }
 }
-function loadAns(){
+async function loadAns(){
     try {
-        var s=getLs('med_a_v4_'+pName);if(s){try{pAns=JSON.parse(s)}catch(e){pAns={}}}else pAns={};
-        if(typeof pAns!=='object'||!pAns)pAns={};
+        var remote=await dbLoadAnswers(pName);
+        if(remote&&typeof remote==='object'){
+            pAns=remote;
+            return;
+        }
+        pAns={};
     } catch(e) {
         pAns={};
     }
 }
-function saveAns(){if(!setLs('med_a_v4_'+pName,JSON.stringify(pAns))){console.warn('Erro ao salvar respostas')}}
+async function saveAns(){
+    if(!await dbSaveAnswers(pName,pAns))console.warn('Erro ao salvar respostas na nuvem');
+}
 
 /* Nav */
 function goHome(){show('sLanding')}
 function goName(){$('pNameIn').value='';show('sName');setTimeout(function(){$('pNameIn').focus()},300)}
-function enterDash(){var n=$('pNameIn').value.trim();if(!n){toast('Informe seu nome','warn');$('pNameIn').focus();return}pName=n;loadAns();renDash();show('sDash')}
+async function enterDash(){var n=$('pNameIn').value.trim();if(!n){toast('Informe seu nome','warn');$('pNameIn').focus();return}pName=n;await loadAns();renDash();show('sDash')}
 function goDash(){renDash();show('sDash')}
 
 /* Admin: abas */
@@ -304,17 +560,24 @@ function addQ(ci){if(cases[ci].qs.length>=MAX_Q)return;cases[ci].qs.push(mkQ());
 function rmQ(ci,qi){if(cases[ci].qs.length<=1)return;cases[ci].qs.splice(qi,1);renABody()}
 
 /* Salvar */
-function saveAll(){
+async function saveAll(){
     var hasAny=false,errors=[];
     for(var i=0;i<5;i++){var c=cases[i];if(!c.title.trim()&&!c.desc.trim()&&!c.img&&!c.qs.some(function(q){return q.text.trim()}))continue;hasAny=true;
         if(!c.title.trim())errors.push('Caso '+(i+1)+': sem título');if(!c.desc.trim())errors.push('Caso '+(i+1)+': sem descrição');
         for(var qi=0;qi<c.qs.length;qi++){var q=c.qs[qi];if(q.text.trim()){if(!q.ref.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem resposta de referência');if(!q.kw.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem palavras-chave')}}}
     if(!hasAny){toast('Preencha pelo menos um caso','warn');return}
     if(errors.length){toast('Corrija: '+errors[0],'err');return}
-    if(!setLs('med_v4',JSON.stringify(cases))){toast('Erro ao salvar: espaço insuficiente. Remova imagens.','err');return}
-    renATabs();toast('Casos salvos com sucesso','ok');
+    if(!await dbSaveCases(cases)){toast('Erro ao salvar na nuvem. Verifique conexão e permissões.','err');return}
+    renATabs();
+    renAdminSummary();
+    toast('Casos salvos com sucesso','ok');
 }
-function resetAll(){if(!confirm('Limpar todos os casos?'))return;rmLs('med_v4');initCases();renATabs();renABody();toast('Casos removidos','info')}
+async function resetAll(){
+    if(!confirm('Limpar todos os casos?'))return;
+    cases=[];for(var i=0;i<5;i++)cases.push(mkC());
+    if(!await dbSaveCases(cases)){toast('Erro ao limpar casos na nuvem','err');return}
+    renATabs();renABody();renAdminSummary();toast('Casos removidos','info');
+}
 
 /* Dashboard */
 function renDash(){
@@ -415,7 +678,7 @@ function onAns(ci,qi,el){
         st.innerHTML='<span class="text-xs" style="color:var(--muted)">'+el.value.length+' caracteres</span>'+(has?'<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>':'<span class="text-xs" style="color:var(--muted)">Pendente</span>');
     }
     clearTimeout(_debTimer);
-    _debTimer=setTimeout(saveAns,400);
+    _debTimer=setTimeout(function(){saveAns()},400);
 }
 
 /* Submissão */
@@ -509,13 +772,23 @@ function renRes(){
 
 function tgQ(el){var b=el.nextElementSibling;var c=el.querySelector('.chev');b.classList.toggle('open');c.style.transform=b.classList.contains('open')?'rotate(180deg)':''}
 function pKW(s){if(!s)return[];return s.split(',').map(function(k){return k.trim().toLowerCase()}).filter(function(k){return k.length>1})}
-function retryEval(){if(!confirm('Refazer avaliação? Todas as respostas serão apagadas.'))return;pAns={};rmLs('med_a_v4_'+pName);goDash();toast('Respostas apagadas','info')}
-
-try {
-    initCases();
-} catch(e) {
-    console.error("Falha crítica na inicialização:", e);
+async function retryEval(){
+    if(!confirm('Refazer avaliação? Todas as respostas serão apagadas.'))return;
+    pAns={};
+    await dbDeleteAnswers(pName);
+    goDash();
+    toast('Respostas apagadas','info');
 }
+
+async function boot(){
+    try {
+        initDb();
+        await initCases();
+    } catch(e) {
+        console.error("Falha crítica na inicialização:", e);
+    }
+}
+boot();
 </script>
 </body>
 </html>
