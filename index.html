@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avaliação de Casos Clínicos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#F7F9FA;--bg2:#EEF1F3;--card:#FFFFFF;
+            --bdr:#D8DEE3;--bdr-l:#E8ECEF;
+            --txt:#1B2A3D;--txt2:#3A4A5C;--muted:#7A8A9A;
+            --pri:#00897B;--pri-d:#00695C;--pri-l:#E0F2F1;--pri-g:rgba(0,137,123,.15);
+            --ok:#2E7D32;--ok-l:#E8F5E9;--err:#C62828;--err-l:#FFEBEE;
+            --acc:#E65100;--acc-l:#FFF3E0;--warn:#F57F17;--warn-l:#FFFDE7;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+        h1,h2,h3,h4{font-family:'Playfair Display',serif;font-weight:600}
+        .screen{display:none;min-height:100vh;animation:fi .3s ease}
+        .screen.active{display:block}
+        @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes su{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pd{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+        @keyframes sr{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+        .btn-p{background:var(--pri);color:#fff;border:none;padding:11px 26px;border-radius:6px;font-weight:600;font-size:14px;cursor:pointer;transition:all .25s;font-family:'DM Sans',sans-serif}
+        .btn-p:hover{background:var(--pri-d);transform:translateY(-1px);box-shadow:0 4px 16px var(--pri-g)}
+        .btn-s{background:var(--card);color:var(--txt2);border:1px solid var(--bdr);padding:10px 22px;border-radius:6px;font-weight:500;font-size:14px;cursor:pointer;transition:all .25s;font-family:'DM Sans',sans-serif}
+        .btn-s:hover{border-color:var(--pri);color:var(--pri)}
+        .btn-d{background:transparent;color:var(--err);border:1px solid rgba(198,40,40,.2);padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;transition:all .25s;font-family:'DM Sans',sans-serif}
+        .btn-d:hover{background:var(--err-l);border-color:var(--err)}
+        .inp{background:#fff;border:1px solid var(--bdr);color:var(--txt);padding:10px 14px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:14px;width:100%;transition:border-color .25s,box-shadow .25s;line-height:1.5}
+        .inp:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-g)}
+        .inp::placeholder{color:var(--muted)}
+        textarea.inp{resize:vertical;min-height:90px}
+        .card{background:var(--card);border:1px solid var(--bdr-l);border-radius:10px;padding:24px;transition:box-shadow .25s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+        .card:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
+        .tab{padding:10px 18px;border-radius:8px 8px 0 0;font-weight:600;font-size:13px;cursor:pointer;border:1px solid transparent;border-bottom:none;background:transparent;color:var(--muted);transition:all .25s;font-family:'DM Sans',sans-serif}
+        .tab.on{background:var(--card);color:var(--pri);border-color:var(--bdr-l)}
+        .tab:not(.on):hover{color:var(--txt)}
+        .drop{border:2px dashed var(--bdr);border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:all .25s;background:#FAFBFC}
+        .drop:hover,.drop.over{border-color:var(--pri);background:var(--pri-l)}
+        .drop img{max-width:100%;max-height:260px;border-radius:6px;object-fit:contain}
+        .toast{padding:13px 18px;border-radius:8px;font-size:13px;font-weight:500;animation:su .25s ease;max-width:420px;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+        .t-ok{background:var(--ok-l);color:var(--ok);border:1px solid rgba(46,125,50,.2)}
+        .t-err{background:var(--err-l);color:var(--err);border:1px solid rgba(198,40,40,.15)}
+        .t-info{background:var(--pri-l);color:var(--pri-d);border:1px solid rgba(0,137,123,.2)}
+        .t-warn{background:var(--warn-l);color:var(--warn);border:1px solid rgba(245,127,23,.2)}
+        .score-c{width:180px;height:180px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:'Playfair Display',serif;position:relative;animation:sr .5s ease}
+        .score-c::before{content:'';position:absolute;inset:0;border-radius:50%;padding:5px;background:conic-gradient(var(--pri) var(--deg,0deg),var(--bdr) var(--deg,0deg));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+        .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+        .dot.pend{background:var(--muted)}.dot.prog{background:var(--warn);animation:pd 1.5s infinite}.dot.done{background:var(--ok)}
+        .pbar{height:4px;background:var(--bg2);border-radius:2px;overflow:hidden}
+        .pfill{height:100%;background:var(--pri);border-radius:2px;transition:width .5s ease}
+        .q-card{border:1px solid var(--bdr-l);border-radius:10px;overflow:hidden;background:var(--card)}
+        .q-head{padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .2s}
+        .q-head:hover{background:var(--bg2)}
+        .q-body{padding:0 18px;max-height:0;overflow:hidden;transition:all .35s ease}
+        .q-body.open{max-height:5000px;padding:0 18px 18px}
+        .modal-bg{position:fixed;inset:0;z-index:100;background:rgba(27,42,61,.5);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;animation:fi .2s ease}
+        .modal-box{background:var(--card);border-radius:12px;padding:32px;max-width:400px;width:90%;animation:su .25s ease;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+        .kw-tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;margin:2px;font-weight:500}
+        .kw-found{background:var(--ok-l);color:var(--ok);border:1px solid rgba(46,125,50,.2)}
+        .kw-miss{background:var(--err-l);color:var(--err);border:1px solid rgba(198,40,40,.15)}
+        .resp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+        .result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+        .header-bar{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--bdr-l)}
+        @media(max-width:767px){.resp-grid{grid-template-columns:1fr}.case-grid{grid-template-columns:1fr}.landing-grid{grid-template-columns:1fr !important}.tab{padding:8px 12px;font-size:11px}.card{padding:16px}.score-c{width:140px;height:140px}}
+        ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
+        .divider{height:1px;background:var(--bdr-l)}
+        .label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px}
+        .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
+        .circle-ind{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+        .num-c{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:var(--pri-l);color:var(--pri)}
+        .sep{width:1px;height:24px;background:var(--bdr);flex-shrink:0}
+    </style>
+</head>
+<body>
+
+<div id="toasts" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+<!-- MODAL SENHA -->
+<div id="modalPass" class="modal-bg" style="display:none" onclick="if(event.target===this)closePass()">
+    <div class="modal-box text-center">
+        <div class="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center text-xl font-bold" style="background:var(--pri-l);color:var(--pri);font-family:Playfair Display,serif">A</div>
+        <h3 class="text-xl font-bold mb-1">Acesso Restrito</h3>
+        <p class="text-sm mb-5" style="color:var(--muted)">Insira a senha de administrador</p>
+        <input id="passIn" type="password" class="inp text-center text-lg mb-4" style="letter-spacing:4px" placeholder="Senha" onkeydown="if(event.key==='Enter')chkPass()">
+        <button type="button" onclick="chkPass()" class="btn-p w-full mb-3">Entrar</button>
+        <button type="button" onclick="closePass()" class="btn-s w-full text-sm">Cancelar</button>
+    </div>
+</div>
+
+<!-- INICIAL -->
+<div id="sLanding" class="screen active">
+    <div class="min-h-screen flex flex-col" style="background:linear-gradient(180deg,#fff 0%,var(--bg) 100%)">
+        <div class="flex-1 flex flex-col items-center justify-center px-4">
+            <div class="text-center mb-14" style="animation:su .5s ease">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">Avaliação de<br><span style="color:var(--pri)">Casos Clínicos</span></h1>
+                <p class="text-sm max-w-md mx-auto leading-relaxed" style="color:var(--muted)">Plataforma de análise descritiva de procedimentos cirúrgicos com avaliação comparativa de respostas</p>
+                <div class="divider max-w-xs mx-auto mt-8"></div>
+            </div>
+            <div class="landing-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:520px;width:100%;animation:su .7s ease">
+                <div onclick="openPass()" class="card cursor-pointer text-center py-10 px-6">
+                    <div class="num-c mx-auto mb-4" style="width:48px;height:48px;font-size:18px">A</div>
+                    <h3 class="text-xl font-bold mb-2">Administrador</h3>
+                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Montar casos clínicos e definir respostas descritivas de referência</p>
+                    <span class="text-xs font-semibold tracking-wide" style="color:var(--pri)">ACESSAR →</span>
+                </div>
+                <div onclick="goName()" class="card cursor-pointer text-center py-10 px-6">
+                    <div class="num-c mx-auto mb-4" style="width:48px;height:48px;font-size:18px;background:var(--acc-l);color:var(--acc)">P</div>
+                    <h3 class="text-xl font-bold mb-2">Participante</h3>
+                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Avaliar casos e responder com descrições cirúrgicas detalhadas</p>
+                    <span class="text-xs font-semibold tracking-wide" style="color:var(--acc)">ACESSAR →</span>
+                </div>
+            </div>
+            <p class="mt-12 text-xs" style="color:var(--muted)">Dados armazenados localmente. Admin e participante devem usar o mesmo navegador.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ADMIN -->
+<div id="sAdmin" class="screen">
+    <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="goHome()" class="btn-s text-xs py-2 px-3">← Voltar</button>
+                <div class="sep"></div>
+                <span class="text-sm font-semibold" style="color:var(--pri);font-family:Playfair Display,serif">Painel Administrativo</span>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" onclick="resetAll()" class="btn-d text-xs">Limpar Tudo</button>
+                <button type="button" onclick="saveAll()" class="btn-p text-xs py-2 px-5">Salvar Casos</button>
+            </div>
+        </div>
+    </header>
+    <div class="max-w-6xl mx-auto px-4 md:px-6 pt-5"><div id="aTabs" class="flex gap-1 overflow-x-auto pb-0"></div></div>
+    <div class="max-w-6xl mx-auto px-4 md:px-6 pb-10"><div id="aBody" class="card" style="border-radius:0 10px 10px 10px;min-height:500px"></div></div>
+</div>
+
+<!-- NOME -->
+<div id="sName" class="screen">
+    <div class="min-h-screen flex items-center justify-center px-4" style="background:linear-gradient(180deg,#fff 0%,var(--bg) 100%)">
+        <div class="card max-w-md w-full text-center" style="animation:su .4s ease">
+            <div class="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center text-xl font-bold" style="background:var(--acc-l);color:var(--acc);font-family:Playfair Display,serif">P</div>
+            <h2 class="text-2xl font-bold mb-1">Identificação</h2>
+            <p class="text-xs mb-6" style="color:var(--muted)">Informe seu nome completo para iniciar</p>
+            <input id="pNameIn" class="inp text-center text-lg mb-5" placeholder="Seu nome completo" maxlength="60" onkeydown="if(event.key==='Enter')enterDash()">
+            <button type="button" onclick="enterDash()" class="btn-p w-full">Iniciar Avaliação</button>
+            <button type="button" onclick="goHome()" class="btn-s w-full mt-3 text-sm">← Voltar</button>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="sDash" class="screen">
+    <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="goHome()" class="btn-s text-xs py-2 px-3">Sair</button>
+                <div class="sep"></div>
+                <div><p class="text-sm font-semibold" id="dTitle"></p><p class="text-xs" style="color:var(--muted)" id="dSub"></p></div>
+            </div>
+            <button type="button" onclick="submitAns()" class="btn-p text-xs py-2 px-5">Finalizar Avaliação</button>
+        </div>
+    </header>
+    <div class="max-w-5xl mx-auto px-4 md:px-6 py-8"><div id="dBody"></div></div>
+</div>
+
+<!-- CASO -->
+<div id="sCase" class="screen">
+    <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <button type="button" onclick="goDash()" class="btn-s text-xs py-2 px-3">← Casos</button>
+            <span id="cLabel" class="text-xs font-semibold tracking-wide" style="color:var(--pri)"></span>
+        </div>
+    </header>
+    <div class="max-w-4xl mx-auto px-4 md:px-6 py-8"><div id="cBody"></div></div>
+</div>
+
+<!-- RESULTADOS -->
+<div id="sRes" class="screen">
+    <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
+        <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <button type="button" onclick="goDash()" class="btn-s text-xs py-2 px-3">← Voltar</button>
+            <span class="text-sm font-semibold" style="color:var(--pri)">Resultado da Avaliação</span>
+            <button type="button" onclick="retryEval()" class="btn-d text-xs">Refazer</button>
+        </div>
+    </header>
+    <div class="max-w-5xl mx-auto px-4 md:px-6 py-8"><div id="rBody"></div></div>
+</div>
+
+<script>
+var cases=[],aTab=0,pName='',pAns={},vCase=-1;
+var MAX_Q=5,PASS='medartis@2026';
+
+function $(i){return document.getElementById(i)}
+function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');window.scrollTo(0,0)}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function toast(m,t){
+    t=t||'info';
+    var c={ok:'t-ok',err:'t-err',info:'t-info',warn:'t-warn'}[t]||'t-info';
+    var e=document.createElement('div');e.className='toast '+c;e.textContent=m;
+    $('toasts').appendChild(e);
+    setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3500);
+}
+
+/* Segurança LocalStorage (Evita erros em file://) */
+function getLs(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function setLs(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+function rmLs(k){try{localStorage.removeItem(k)}catch(e){return false}}
+
+/* Senha */
+function openPass(){$('modalPass').style.display='flex';$('passIn').value='';setTimeout(function(){$('passIn').focus()},150)}
+function closePass(){$('modalPass').style.display='none'}
+function chkPass(){
+    if($('passIn').value===PASS){closePass();aTab=0;renATabs();renABody();show('sAdmin');toast('Bem-vindo ao painel administrativo','ok')}
+    else{toast('Senha incorreta','err');$('passIn').value='';$('passIn').focus();$('passIn').style.borderColor='var(--err)';setTimeout(function(){$('passIn').style.borderColor=''},1500)}
+}
+
+/* Dados */
+function mkQ(){return{text:'',ref:'',kw:'',expl:''}}
+function mkC(){return{title:'',img:'',desc:'',qs:[mkQ()]}}
+function initCases(){
+    try {
+        var s=getLs('med_v4');if(s){try{cases=JSON.parse(s)}catch(e){cases=[]}}
+        if(!Array.isArray(cases)||cases.length!==5){cases=[];for(var i=0;i<5;i++)cases.push(mkC())}
+        cases.forEach(function(c){
+            if(!Array.isArray(c.qs)||c.qs.length===0)c.qs=[mkQ()];
+            c.qs.forEach(function(q){
+                if(typeof q.text!=='string')q.text='';
+                if(typeof q.ref!=='string')q.ref='';
+                if(typeof q.kw!=='string')q.kw='';
+                if(typeof q.expl!=='string')q.expl='';
+            });
+        });
+    } catch(e) {
+        console.error("Erro ao inicializar casos:", e);
+        cases=[];for(var i=0;i<5;i++)cases.push(mkC());
+    }
+}
+function loadAns(){
+    try {
+        var s=getLs('med_a_v4_'+pName);if(s){try{pAns=JSON.parse(s)}catch(e){pAns={}}}else pAns={};
+        if(typeof pAns!=='object'||!pAns)pAns={};
+    } catch(e) {
+        pAns={};
+    }
+}
+function saveAns(){if(!setLs('med_a_v4_'+pName,JSON.stringify(pAns))){console.warn('Erro ao salvar respostas')}}
+
+/* Nav */
+function goHome(){show('sLanding')}
+function goName(){$('pNameIn').value='';show('sName');setTimeout(function(){$('pNameIn').focus()},300)}
+function enterDash(){var n=$('pNameIn').value.trim();if(!n){toast('Informe seu nome','warn');$('pNameIn').focus();return}pName=n;loadAns();renDash();show('sDash')}
+function goDash(){renDash();show('sDash')}
+
+/* Admin: abas */
+function renATabs(){
+    var h='';
+    for(var i=0;i<5;i++){var c=cases[i];var ok=c.title&&c.desc&&c.qs.some(function(q){return q.text&&q.ref});h+='<button type="button" class="tab '+(i===aTab?'on':'')+'" onclick="swTab('+i+')">'+(ok?'\u25CF ':'\u25CB ')+'Caso '+(i+1)+'</button>'}
+    $('aTabs').innerHTML=h;
+}
+function swTab(i){aTab=i;renATabs();renABody()}
+
+/* Admin: conteúdo */
+function renABody(){
+    var c=cases[aTab],i=aTab,h='<div class="space-y-6">';
+    h+='<div><label class="label">Título do Caso Clínico</label><input class="inp text-base font-semibold" value="'+esc(c.title)+'" oninput="cases['+i+'].title=this.value" placeholder="Ex: Fratura exposta de tíbia direita \u2014 Gustilo IIIA em paciente diabético"></div>';
+    h+='<div><label class="label">Imagem Clínica / Radiológica</label><div class="drop" onclick="$(\'fi_'+i+'\').click()" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');hDrop('+i+',event)"><input type="file" id="fi_'+i+'" accept="image/*" style="display:none" onchange="hFile('+i+',this.files[0])">';
+    if(c.img)h+='<img src="'+c.img+'" alt="Imagem do caso"><p class="mt-2 text-xs" style="color:var(--muted)">Clique para trocar</p>';
+    else h+='<p class="font-medium text-sm mb-1" style="color:var(--muted)">Arraste uma imagem ou clique para selecionar</p><p class="text-xs" style="color:var(--muted)">JPG, PNG \u2014 redimensionada automaticamente</p>';
+    h+='</div>';if(c.img)h+='<button type="button" onclick="cases['+i+'].img=\'\';renABody();renATabs()" class="btn-d mt-2 text-xs">Remover imagem</button>';h+='</div>';
+    h+='<div><label class="label">Descrição Clínica Completa</label><textarea class="inp" rows="5" oninput="cases['+i+'].desc=this.value" placeholder="Descreva detalhadamente: dados do paciente, mecanismo de trauma, histórico, exame físico, achados de imagem, classificação, exames laboratoriais...">'+esc(c.desc)+'</textarea></div>';
+    h+='<div><div class="flex items-center justify-between mb-4"><label class="label" style="margin:0">Perguntas Descritivas ('+c.qs.length+'/'+MAX_Q+')</label>';
+    if(c.qs.length<MAX_Q)h+='<button type="button" onclick="addQ('+i+')" class="btn-s text-xs py-1 px-3">+ Adicionar</button>';
+    h+='</div><div class="space-y-6">';
+    for(var qi=0;qi<c.qs.length;qi++){
+        var q=c.qs[qi];
+        h+='<div class="p-5 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex items-center justify-between mb-3"><span class="text-xs font-bold tracking-wide" style="color:var(--pri)">PERGUNTA '+(qi+1)+'</span>';
+        if(c.qs.length>1)h+='<button type="button" onclick="rmQ('+i+','+qi+')" class="btn-d text-xs py-1 px-2">Remover</button>';
+        h+='</div>';
+        h+='<div class="mb-4"><label class="label">Enunciado</label><textarea class="inp" rows="3" oninput="cases['+i+'].qs['+qi+'].text=this.value" placeholder="Descreva a pergunta. Ex: Descreva o procedimento cirúrgico mais indicado para este caso...">'+esc(q.text)+'</textarea></div>';
+        h+='<div class="mb-4"><label class="label">Resposta Descritiva de Referência</label><textarea class="inp" rows="5" oninput="cases['+i+'].qs['+qi+'].ref=this.value" placeholder="Descreva a resposta completa esperada do participante...">'+esc(q.ref)+'</textarea></div>';
+        h+='<div class="mb-4"><label class="label">Palavras-chave esperadas (separadas por vírgula)</label><input class="inp" value="'+esc(q.kw)+'" oninput="cases['+i+'].qs['+qi+'].kw=this.value" placeholder="Ex: fixação intramedular, bloqueada, tíbia, Gustilo IIIA"><p class="text-xs mt-1" style="color:var(--muted)">Usadas para pontuar automaticamente a resposta do participante</p></div>';
+        h+='<div><label class="label">Explicação Complementar</label><textarea class="inp" rows="3" oninput="cases['+i+'].qs['+qi+'].expl=this.value" placeholder="Informações adicionais, referências, detalhes técnicos...">'+esc(q.expl)+'</textarea></div></div>';
+    }
+    h+='</div></div></div>';$('aBody').innerHTML=h;
+}
+
+/* Imagem */
+function hFile(ci,file){
+    if(!file||!file.type.startsWith('image/')){if(file)toast('Selecione uma imagem válida','err');return}
+    var r=new FileReader();
+    r.onload=function(e){var img=new Image();img.onload=function(){var cv=document.createElement('canvas');var w=img.width,h=img.height;if(w>800){h=(800/w)*h;w=800}cv.width=Math.max(1,w);cv.height=Math.max(1,h);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);try{cases[ci].img=cv.toDataURL('image/jpeg',0.8);renABody();renATabs()}catch(err){toast('Erro ao processar imagem','err')}};img.onerror=function(){toast('Erro ao carregar imagem','err')};img.src=e.target.result};
+    r.onerror=function(){toast('Erro ao ler arquivo','err')};r.readAsDataURL(file);
+}
+function hDrop(ci,e){var f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))hFile(ci,f);else toast('Selecione uma imagem válida','err')}
+
+/* Perguntas */
+function addQ(ci){if(cases[ci].qs.length>=MAX_Q)return;cases[ci].qs.push(mkQ());renABody()}
+function rmQ(ci,qi){if(cases[ci].qs.length<=1)return;cases[ci].qs.splice(qi,1);renABody()}
+
+/* Salvar */
+function saveAll(){
+    var hasAny=false,errors=[];
+    for(var i=0;i<5;i++){var c=cases[i];if(!c.title.trim()&&!c.desc.trim()&&!c.img&&!c.qs.some(function(q){return q.text.trim()}))continue;hasAny=true;
+        if(!c.title.trim())errors.push('Caso '+(i+1)+': sem título');if(!c.desc.trim())errors.push('Caso '+(i+1)+': sem descrição');
+        for(var qi=0;qi<c.qs.length;qi++){var q=c.qs[qi];if(q.text.trim()){if(!q.ref.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem resposta de referência');if(!q.kw.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem palavras-chave')}}}
+    if(!hasAny){toast('Preencha pelo menos um caso','warn');return}
+    if(errors.length){toast('Corrija: '+errors[0],'err');return}
+    if(!setLs('med_v4',JSON.stringify(cases))){toast('Erro ao salvar: espaço insuficiente. Remova imagens.','err');return}
+    renATabs();toast('Casos salvos com sucesso','ok');
+}
+function resetAll(){if(!confirm('Limpar todos os casos?'))return;rmLs('med_v4');initCases();renATabs();renABody();toast('Casos removidos','info')}
+
+/* Dashboard */
+function renDash(){
+    $('dTitle').textContent=pName;
+    var avail=cases.filter(function(c){return c.title.trim()});
+    var ansCnt=0,total=0;
+    avail.forEach(function(c){c.qs.forEach(function(q){if(q.text.trim())total++})});
+    cases.forEach(function(c,ci){if(!c.title.trim())return;c.qs.forEach(function(q,qi){if(q.text.trim()&&pAns[ci]&&pAns[ci][qi]&&pAns[ci][qi].trim())ansCnt++})});
+    $('dSub').textContent=avail.length+' caso(s) \u2014 '+ansCnt+'/'+total+' respondidas';
+    if(!avail.length){$('dBody').innerHTML='<div class="card text-center py-16"><h3 class="text-xl font-bold mb-2">Nenhum caso disponível</h3><p class="text-sm" style="color:var(--muted)">Aguarde o administrador configurar os casos.</p></div>';return}
+    var h='<div class="case-grid">';
+    for(var idx=0;idx<cases.length;idx++){var c=cases[idx];if(!c.title.trim())continue;
+        var qC=0;c.qs.forEach(function(q){if(q.text.trim())qC++});
+        var aC=0;if(pAns[idx])c.qs.forEach(function(q,qi){if(q.text.trim()&&pAns[idx][qi]&&pAns[idx][qi].trim())aC++});
+        var st='pend',sT='Não iniciado',sC='var(--muted)';if(aC>0&&aC<qC){st='prog';sT='Em andamento';sC='var(--warn)'}else if(aC>=qC&&qC>0){st='done';sT='Concluído';sC='var(--ok)'}
+        var pct=qC>0?Math.round((aC/qC)*100):0;
+        h+='<div class="card cursor-pointer" onclick="openC('+idx+')" style="animation:su .4s ease;animation-delay:'+(idx*70)+'ms;animation-fill-mode:both"><div class="flex items-center justify-between mb-3"><span class="badge" style="background:var(--pri-l);color:var(--pri)">CASO '+(idx+1)+'</span><div class="flex items-center gap-2"><span class="dot '+st+'"></span><span class="text-xs" style="color:'+sC+'">'+sT+'</span></div></div>';
+        h+='<h3 class="font-bold text-sm mb-2 leading-snug" style="font-family:Playfair Display,serif">'+esc(c.title)+'</h3>';
+        if(c.img)h+='<img src="'+c.img+'" class="w-full h-28 object-cover rounded-lg mb-3" alt="">';
+        var ds=esc(c.desc);if(ds.length>120)ds=ds.substring(0,120)+'...';
+        h+='<p class="text-xs mb-3 leading-relaxed" style="color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+ds+'</p>';
+        h+='<div class="flex items-center justify-between text-xs mb-2"><span style="color:var(--muted)">'+aC+'/'+qC+' perguntas</span><span style="color:'+sC+'">'+pct+'%</span></div>';
+        h+='<div class="pbar"><div class="pfill" style="width:'+pct+'%"></div></div></div>'}
+    h+='</div>';$('dBody').innerHTML=h;
+}
+
+/* Visualização do caso */
+function openC(ci){
+    vCase=ci;var c=cases[ci];var vq=[];
+    c.qs.forEach(function(q,i){if(q.text.trim())vq.push({text:q.text,ref:q.ref,kw:q.kw,expl:q.expl,_i:i})});
+    $('cLabel').textContent='CASO '+(ci+1);
+    var h='<div class="space-y-6" style="animation:su .35s ease"><div class="card"><h2 class="text-2xl font-bold mb-1 leading-snug">'+esc(c.title)+'</h2><span class="badge mb-4 inline-block" style="background:var(--pri-l);color:var(--pri)">CASO CLÍNICO '+(ci+1)+'</span>';
+    if(c.img)h+='<img src="'+c.img+'" class="w-full max-h-96 object-contain rounded-lg mb-4 mt-4" style="background:var(--bg)" alt="Imagem do caso">';
+    h+='<div class="text-sm leading-relaxed mt-4" style="color:var(--txt2);white-space:pre-line">'+esc(c.desc)+'</div></div>';
+    h+='<div><h3 class="text-lg font-bold mb-4">Perguntas Descritivas ('+vq.length+')</h3><div class="space-y-5">';
+    for(var vi=0;vi<vq.length;vi++){var q=vq[vi];var val=(pAns[ci]&&pAns[ci][q._i])||'';var has=val.trim().length>0;
+        h+='<div class="card"><div class="flex items-start gap-3 mb-3"><span class="num-c">'+(q._i+1)+'</span><p class="font-semibold text-sm leading-snug pt-1">'+esc(q.text)+'</p></div>';
+        h+='<textarea class="inp" rows="7" id="ta_'+ci+'_'+q._i+'" oninput="onAns('+ci+','+q._i+',this)" placeholder="Descreva detalhadamente sua resposta. Inclua justificativas, técnica cirúrgica, materiais, cuidados...">'+esc(val)+'</textarea>';
+        h+='<div class="flex justify-between items-center mt-2" id="qs_'+ci+'_'+q._i+'"><span class="text-xs" style="color:var(--muted)">'+val.length+' caracteres</span>'+(has?'<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>':'<span class="text-xs" style="color:var(--muted)">Pendente</span>')+'</div></div>'}
+    h+='</div></div><div class="flex justify-between pt-4"><button type="button" onclick="goDash()" class="btn-s">\u2190 Voltar</button><button type="button" onclick="goDash()" class="btn-p">Salvar e Voltar</button></div></div>';
+    $('cBody').innerHTML=h;
+}
+
+/* Salvar resposta sem perder foco */
+var _debTimer=null;
+function onAns(ci,qi,el){
+    if(!pAns[ci])pAns[ci]={};pAns[ci][qi]=el.value;
+    var st=$('qs_'+ci+'_'+qi);
+    if(st){var has=el.value.trim().length>0;st.innerHTML='<span class="text-xs" style="color:var(--muted)">'+el.value.length+' caracteres</span>'+(has?'<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>':'<span class="text-xs" style="color:var(--muted)">Pendente</span>')}
+    clearTimeout(_debTimer);_debTimer=setTimeout(saveAns,400);
+}
+
+/* Submissão */
+function submitAns(){
+    var avail=cases.filter(function(c){return c.title.trim()});if(!avail.length){toast('Nenhum caso disponível','warn');return}
+    var miss=[];avail.forEach(function(c){var ci=cases.indexOf(c);c.qs.forEach(function(q,qi){if(q.text.trim()&&(!pAns[ci]||!pAns[ci][qi]||!pAns[ci][qi].trim()))miss.push('Caso '+(ci+1)+', Q'+(qi+1))})});
+    if(miss.length){toast('Faltam '+miss.length+' resposta(s): '+miss[0],'warn');return}
+    renRes();show('sRes');
+}
+
+/* Resultados */
+function renRes(){
+    var avail=cases.filter(function(c){return c.title.trim()});
+    var totKW=0,fndKW=0,cRes=[];
+    avail.forEach(function(c){var ci=cases.indexOf(c);var vq=[];
+        c.qs.forEach(function(q,i){if(q.text.trim())vq.push({text:q.text,ref:q.ref,kw:q.kw,expl:q.expl,_i:i})});
+        var qr=vq.map(function(q){var ans=(pAns[ci]&&pAns[ci][q._i])||'';var kws=pKW(q.kw);
+            var kwa=kws.map(function(k){return{w:k,f:ans.toLowerCase().indexOf(k)!==-1}});var fc=0;kwa.forEach(function(k){if(k.f)fc++});
+            totKW+=kws.length;fndKW+=fc;var pct=kws.length>0?Math.round((fc/kws.length)*100):(ans.trim().length>0?50:0);
+            return{text:q.text,ans:ans,ref:q.ref,expl:q.expl,kwa:kwa,fc:fc,tot:kwa.length,pct:pct}});
+        var ckt=0,ckf=0;qr.forEach(function(q){ckt+=q.tot;ckf+=q.fc});var cp=ckt>0?Math.round((ckf/ckt)*100):0;
+        cRes.push({co:c,ci:ci,qr:qr,kf:ckf,kt:ckt,pct:cp})});
+    var pG=totKW>0?Math.round((fndKW/totKW)*100):0;var deg=Math.round((pG/100)*360);
+    var niv,nC,nT;
+    if(pG>=85){niv='Excelente';nC='var(--ok)';nT='Demonstrou conhecimento cirúrgico avançado, com descrições precisas e abrangentes que contemplam os principais aspectos de cada caso.'}
+    else if(pG>=65){niv='Muito Bom';nC='var(--pri)';nT='Possui boa base teórica com descrições adequadas, porém com algumas lacunas em pontos específicos que podem ser aprofundados.'}
+    else if(pG>=45){niv='Regular';nC='var(--warn)';nT='As respostas apresentam conceitos corretos mas carecem de profundidade técnica. Recomenda-se revisar protocolos de indicação cirúrgica.'}
+    else{niv='Necessita Melhoria';nC='var(--err)';nT='As respostas não contemplaram os pontos-chave esperados. Revisar fundamentos dos procedimentos e estudar os casos apresentados.'}
+    var h='<div class="text-center mb-12" style="animation:su .4s ease"><p class="text-sm mb-5" style="color:var(--muted)">Resultado de <strong style="color:var(--txt)">'+esc(pName)+'</strong></p>';
+    h+='<div class="score-c mx-auto mb-5" style="--deg:'+deg+'deg"><span class="text-5xl font-bold" style="color:'+nC+'">'+pG+'%</span><span class="text-xs font-medium" style="color:var(--muted)">'+fndKW+'/'+totKW+' palavras-chave</span></div>';
+    h+='<div class="badge mb-3" style="background:'+nC+'15;color:'+nC+';border:1px solid '+nC+'30;font-size:13px;padding:5px 16px">'+niv+'</div>';
+    h+='<p class="text-sm max-w-xl mx-auto leading-relaxed" style="color:var(--muted)">'+nT+'</p></div><div class="divider mb-8"></div>';
+    h+='<div class="mb-8"><h3 class="text-lg font-bold mb-5">Desempenho por Caso</h3><div class="result-grid">';
+    cRes.forEach(function(cr,idx){var cC=cr.pct>=75?'var(--ok)':cr.pct>=45?'var(--warn)':'var(--err)';var cL=cr.pct>=75?'Bom':cr.pct>=45?'Regular':'Fraco';
+        var ts=esc(cr.co.title);if(ts.length>50)ts=ts.substring(0,50)+'...';
+        h+='<div class="card text-center" style="animation:su .4s ease;animation-delay:'+(idx*80)+'ms;animation-fill-mode:both"><p class="text-xs font-bold tracking-widest mb-1" style="color:var(--pri)">CASO '+(cr.ci+1)+'</p>';
+        h+='<p class="font-bold text-sm mb-3 leading-snug" style="font-family:Playfair Display,serif">'+ts+'</p>';
+        h+='<div class="text-3xl font-bold mb-1" style="color:'+cC+';font-family:Playfair Display,serif">'+cr.pct+'%</div>';
+        h+='<p class="text-xs mb-3" style="color:var(--muted)">'+cr.kf+'/'+cr.kt+' palavras-chave</p>';
+        h+='<span class="badge" style="background:'+cC+'15;color:'+cC+';border:1px solid '+cC+'25">'+cL+'</span></div>'});
+    h+='</div></div><div class="divider mb-8"></div>';
+    h+='<div><h3 class="text-lg font-bold mb-5">Análise Detalhada por Pergunta</h3><div class="space-y-3">';
+    cRes.forEach(function(cr){cr.qr.forEach(function(q,qi){var iC=q.pct>=70?'var(--ok)':'var(--err)';var iT=q.pct>=70?q.pct+'% \u2014 Bom':q.pct+'% \u2014 Insuficiente';
+        var ts=esc(q.text);if(ts.length>85)ts=ts.substring(0,85)+'...';
+        h+='<div class="q-card"><div class="q-head" onclick="tgQ(this)"><div class="flex items-center gap-3"><span class="circle-ind" style="background:'+iC+'"></span><div><span class="text-xs font-bold tracking-wide" style="color:var(--pri)">CASO '+(cr.ci+1)+' \u2014 PERGUNTA '+(qi+1)+'</span><p class="text-sm font-medium mt-0.5 leading-snug">'+ts+'</p></div></div>';
+        h+='<div class="flex items-center gap-3"><span class="badge hidden md:inline-block" style="background:'+iC+'12;color:'+iC+';border:1px solid '+iC+'25">'+iT+'</span><span style="color:var(--muted);transition:transform .3s;display:inline-block" class="chev">\u25BC</span></div></div>';
+        h+='<div class="q-body"><p class="text-sm font-semibold mb-4 leading-relaxed">'+esc(q.text)+'</p>';
+        h+='<div class="mb-5"><p class="label mb-2">Palavras-chave</p><div class="flex flex-wrap gap-1">';
+        q.kwa.forEach(function(k){h+='<span class="kw-tag '+(k.f?'kw-found':'kw-miss')+'">'+(k.f?'\u2713 ':'\u2717 ')+esc(k.w)+'</span>'});
+        h+='</div><p class="text-xs mt-2" style="color:var(--muted)">'+q.fc+' de '+q.tot+' encontradas ('+q.pct+'%)</p></div>';
+        h+='<div class="resp-grid mb-5"><div><p class="label mb-2">Sua Resposta</p><div class="p-3 rounded-lg text-sm leading-relaxed" style="background:var(--bg);border:1px solid var(--bdr-l);white-space:pre-line;max-height:280px;overflow-y:auto">'+(q.ans.trim()?esc(q.ans):'<span style="color:var(--muted);font-style:italic">Sem resposta</span>')+'</div></div>';
+        h+='<div><p class="label mb-2">Resposta de Referência</p><div class="p-3 rounded-lg text-sm leading-relaxed" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line;max-height:280px;overflow-y:auto">'+esc(q.ref)+'</div></div></div>';
+        if(q.expl)h+='<div class="p-4 rounded-lg" style="background:var(--pri-l);border:1px solid rgba(0,137,123,.15)"><p class="label mb-1">Explicação Complementar</p><p class="text-sm leading-relaxed" style="color:var(--txt2);white-space:pre-line">'+esc(q.expl)+'</p></div>';
+        h+='</div></div>'})});
+    h+='</div></div><div class="divider my-10"></div><div class="text-center mb-10"><button type="button" onclick="goDash()" class="btn-s mr-3">\u2190 Voltar ao Dashboard</button><button type="button" onclick="retryEval()" class="btn-d">Refazer Avaliação</button></div>';
+    $('rBody').innerHTML=h;
+}
+
+function tgQ(el){var b=el.nextElementSibling;var c=el.querySelector('.chev');b.classList.toggle('open');c.style.transform=b.classList.contains('open')?'rotate(180deg)':''}
+function pKW(s){if(!s)return[];return s.split(',').map(function(k){return k.trim().toLowerCase()}).filter(function(k){return k.length>1})}
+function retryEval(){if(!confirm('Refazer avaliação? Todas as respostas serão apagadas.'))return;pAns={};rmLs('med_a_v4_'+pName);goDash();toast('Respostas apagadas','info')}
+
+try {
+    initCases();
+} catch(e) {
+    console.error("Falha crítica na inicialização:", e);
+}
+</script>
+</body>
+</html>
