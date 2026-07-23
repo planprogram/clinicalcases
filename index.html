@@ -268,10 +268,10 @@ function swTab(i){aTab=i;renATabs();renABody()}
 /* Admin: conteúdo */
 function renABody(){
     var c=cases[aTab],i=aTab,h='<div class="space-y-6">';
-    h+='<div><label class="label">Título do Caso Clínico</label><input class="inp text-base font-semibold" value="'+esc(c.title)+'" oninput="cases['+i+'].title=this.value" placeholder="Ex: Fratura exposta de tíbia direita \u2014 Gustilo IIIA em paciente diabético"></div>';
+    h+='<div><label class="label">Título do Caso Clínico</label><input class="inp text-base font-semibold" value="'+esc(c.title)+'" oninput="cases['+i+'].title=this.value" placeholder="Ex: Fratura exposta de tíbia direita — Gustilo IIIA em paciente diabético"></div>';
     h+='<div><label class="label">Imagem Clínica / Radiológica</label><div class="drop" onclick="$(\'fi_'+i+'\').click()" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');hDrop('+i+',event)"><input type="file" id="fi_'+i+'" accept="image/*" style="display:none" onchange="hFile('+i+',this.files[0])">';
     if(c.img)h+='<img src="'+c.img+'" alt="Imagem do caso"><p class="mt-2 text-xs" style="color:var(--muted)">Clique para trocar</p>';
-    else h+='<p class="font-medium text-sm mb-1" style="color:var(--muted)">Arraste uma imagem ou clique para selecionar</p><p class="text-xs" style="color:var(--muted)">JPG, PNG \u2014 redimensionada automaticamente</p>';
+    else h+='<p class="font-medium text-sm mb-1" style="color:var(--muted)">Arraste uma imagem ou clique para selecionar</p><p class="text-xs" style="color:var(--muted)">JPG, PNG — redimensionada automaticamente</p>';
     h+='</div>';if(c.img)h+='<button type="button" onclick="cases['+i+'].img=\'\';renABody();renATabs()" class="btn-d mt-2 text-xs">Remover imagem</button>';h+='</div>';
     h+='<div><label class="label">Descrição Clínica Completa</label><textarea class="inp" rows="5" oninput="cases['+i+'].desc=this.value" placeholder="Descreva detalhadamente: dados do paciente, mecanismo de trauma, histórico, exame físico, achados de imagem, classificação, exames laboratoriais...">'+esc(c.desc)+'</textarea></div>';
     h+='<div><div class="flex items-center justify-between mb-4"><label class="label" style="margin:0">Perguntas Descritivas ('+c.qs.length+'/'+MAX_Q+')</label>';
@@ -323,7 +323,7 @@ function renDash(){
     var ansCnt=0,total=0;
     avail.forEach(function(c){c.qs.forEach(function(q){if(q.text.trim())total++})});
     cases.forEach(function(c,ci){if(!c.title.trim())return;c.qs.forEach(function(q,qi){if(q.text.trim()&&pAns[ci]&&pAns[ci][qi]&&pAns[ci][qi].trim())ansCnt++})});
-    $('dSub').textContent=avail.length+' caso(s) \u2014 '+ansCnt+'/'+total+' respondidas';
+    $('dSub').textContent=avail.length+' caso(s) — '+ansCnt+'/'+total+' respondidas';
     if(!avail.length){$('dBody').innerHTML='<div class="card text-center py-16"><h3 class="text-xl font-bold mb-2">Nenhum caso disponível</h3><p class="text-sm" style="color:var(--muted)">Aguarde o administrador configurar os casos.</p></div>';return}
     var h='<div class="case-grid">';
     for(var idx=0;idx<cases.length;idx++){var c=cases[idx];if(!c.title.trim())continue;
@@ -341,36 +341,94 @@ function renDash(){
     h+='</div>';$('dBody').innerHTML=h;
 }
 
-/* Visualização do caso */
+/* Visualização do caso — CORRIGIDA: agora chama show('sCase') no final */
 function openC(ci){
-    vCase=ci;var c=cases[ci];var vq=[];
-    c.qs.forEach(function(q,i){if(q.text.trim())vq.push({text:q.text,ref:q.ref,kw:q.kw,expl:q.expl,_i:i})});
+    vCase=ci;
+    var c=cases[ci];
+    var vq=[];
+    c.qs.forEach(function(q,i){
+        if(q.text.trim()) vq.push({text:q.text, ref:q.ref, kw:q.kw, expl:q.expl, _i:i});
+    });
     $('cLabel').textContent='CASO '+(ci+1);
-    var h='<div class="space-y-6" style="animation:su .35s ease"><div class="card"><h2 class="text-2xl font-bold mb-1 leading-snug">'+esc(c.title)+'</h2><span class="badge mb-4 inline-block" style="background:var(--pri-l);color:var(--pri)">CASO CLÍNICO '+(ci+1)+'</span>';
-    if(c.img)h+='<img src="'+c.img+'" class="w-full max-h-96 object-contain rounded-lg mb-4 mt-4" style="background:var(--bg)" alt="Imagem do caso">';
-    h+='<div class="text-sm leading-relaxed mt-4" style="color:var(--txt2);white-space:pre-line">'+esc(c.desc)+'</div></div>';
-    h+='<div><h3 class="text-lg font-bold mb-4">Perguntas Descritivas ('+vq.length+')</h3><div class="space-y-5">';
-    for(var vi=0;vi<vq.length;vi++){var q=vq[vi];var val=(pAns[ci]&&pAns[ci][q._i])||'';var has=val.trim().length>0;
-        h+='<div class="card"><div class="flex items-start gap-3 mb-3"><span class="num-c">'+(q._i+1)+'</span><p class="font-semibold text-sm leading-snug pt-1">'+esc(q.text)+'</p></div>';
+
+    var h='<div class="space-y-6" style="animation:su .35s ease">';
+
+    /* Cabeçalho do caso */
+    h+='<div class="card">';
+    h+='<h2 class="text-2xl font-bold mb-1 leading-snug">'+esc(c.title)+'</h2>';
+    h+='<span class="badge mb-4 inline-block" style="background:var(--pri-l);color:var(--pri)">CASO CLÍNICO '+(ci+1)+'</span>';
+    if(c.img) h+='<img src="'+c.img+'" class="w-full max-h-96 object-contain rounded-lg mb-4 mt-4" style="background:var(--bg)" alt="Imagem do caso">';
+    h+='<div class="text-sm leading-relaxed mt-4" style="color:var(--txt2);white-space:pre-line">'+esc(c.desc)+'</div>';
+    h+='</div>';
+
+    /* Perguntas */
+    h+='<div>';
+    h+='<h3 class="text-lg font-bold mb-4">Perguntas Descritivas ('+vq.length+')</h3>';
+    h+='<div class="space-y-5">';
+
+    for(var vi=0;vi<vq.length;vi++){
+        var q=vq[vi];
+        var val=(pAns[ci]&&pAns[ci][q._i])||'';
+        var has=val.trim().length>0;
+
+        h+='<div class="card">';
+        h+='<div class="flex items-start gap-3 mb-3">';
+        h+='<span class="num-c">'+(q._i+1)+'</span>';
+        h+='<p class="font-semibold text-sm leading-snug pt-1">'+esc(q.text)+'</p>';
+        h+='</div>';
+
         h+='<textarea class="inp" rows="7" id="ta_'+ci+'_'+q._i+'" oninput="onAns('+ci+','+q._i+',this)" placeholder="Descreva detalhadamente sua resposta. Inclua justificativas, técnica cirúrgica, materiais, cuidados...">'+esc(val)+'</textarea>';
-        h+='<div class="flex justify-between items-center mt-2" id="qs_'+ci+'_'+q._i+'"><span class="text-xs" style="color:var(--muted)">'+val.length+' caracteres</span>'+(has?'<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>':'<span class="text-xs" style="color:var(--muted)">Pendente</span>')+'</div></div>'}
-    h+='</div></div><div class="flex justify-between pt-4"><button type="button" onclick="goDash()" class="btn-s">\u2190 Voltar</button><button type="button" onclick="goDash()" class="btn-p">Salvar e Voltar</button></div></div>';
+
+        h+='<div class="flex justify-between items-center mt-2" id="qs_'+ci+'_'+q._i+'">';
+        h+='<span class="text-xs" style="color:var(--muted)">'+val.length+' caracteres</span>';
+        if(has){
+            h+='<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>';
+        } else {
+            h+='<span class="text-xs" style="color:var(--muted)">Pendente</span>';
+        }
+        h+='</div>';
+        h+='</div>';
+    }
+
+    h+='</div></div>';
+
+    /* Botões de navegação */
+    h+='<div class="flex justify-between pt-4">';
+    h+='<button type="button" onclick="goDash()" class="btn-s">\u2190 Voltar</button>';
+    h+='<button type="button" onclick="goDash()" class="btn-p">Salvar e Voltar</button>';
+    h+='</div>';
+
+    h+='</div>';
+
     $('cBody').innerHTML=h;
+    show('sCase');
 }
 
 /* Salvar resposta sem perder foco */
 var _debTimer=null;
 function onAns(ci,qi,el){
-    if(!pAns[ci])pAns[ci]={};pAns[ci][qi]=el.value;
+    if(!pAns[ci])pAns[ci]={};
+    pAns[ci][qi]=el.value;
     var st=$('qs_'+ci+'_'+qi);
-    if(st){var has=el.value.trim().length>0;st.innerHTML='<span class="text-xs" style="color:var(--muted)">'+el.value.length+' caracteres</span>'+(has?'<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>':'<span class="text-xs" style="color:var(--muted)">Pendente</span>')}
-    clearTimeout(_debTimer);_debTimer=setTimeout(saveAns,400);
+    if(st){
+        var has=el.value.trim().length>0;
+        st.innerHTML='<span class="text-xs" style="color:var(--muted)">'+el.value.length+' caracteres</span>'+(has?'<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>':'<span class="text-xs" style="color:var(--muted)">Pendente</span>');
+    }
+    clearTimeout(_debTimer);
+    _debTimer=setTimeout(saveAns,400);
 }
 
 /* Submissão */
 function submitAns(){
-    var avail=cases.filter(function(c){return c.title.trim()});if(!avail.length){toast('Nenhum caso disponível','warn');return}
-    var miss=[];avail.forEach(function(c){var ci=cases.indexOf(c);c.qs.forEach(function(q,qi){if(q.text.trim()&&(!pAns[ci]||!pAns[ci][qi]||!pAns[ci][qi].trim()))miss.push('Caso '+(ci+1)+', Q'+(qi+1))})});
+    var avail=cases.filter(function(c){return c.title.trim()});
+    if(!avail.length){toast('Nenhum caso disponível','warn');return}
+    var miss=[];
+    avail.forEach(function(c){
+        var ci=cases.indexOf(c);
+        c.qs.forEach(function(q,qi){
+            if(q.text.trim()&&(!pAns[ci]||!pAns[ci][qi]||!pAns[ci][qi].trim())) miss.push('Caso '+(ci+1)+', Q'+(qi+1));
+        });
+    });
     if(miss.length){toast('Faltam '+miss.length+' resposta(s): '+miss[0],'warn');return}
     renRes();show('sRes');
 }
@@ -379,47 +437,73 @@ function submitAns(){
 function renRes(){
     var avail=cases.filter(function(c){return c.title.trim()});
     var totKW=0,fndKW=0,cRes=[];
-    avail.forEach(function(c){var ci=cases.indexOf(c);var vq=[];
+    avail.forEach(function(c){
+        var ci=cases.indexOf(c);
+        var vq=[];
         c.qs.forEach(function(q,i){if(q.text.trim())vq.push({text:q.text,ref:q.ref,kw:q.kw,expl:q.expl,_i:i})});
-        var qr=vq.map(function(q){var ans=(pAns[ci]&&pAns[ci][q._i])||'';var kws=pKW(q.kw);
-            var kwa=kws.map(function(k){return{w:k,f:ans.toLowerCase().indexOf(k)!==-1}});var fc=0;kwa.forEach(function(k){if(k.f)fc++});
-            totKW+=kws.length;fndKW+=fc;var pct=kws.length>0?Math.round((fc/kws.length)*100):(ans.trim().length>0?50:0);
-            return{text:q.text,ans:ans,ref:q.ref,expl:q.expl,kwa:kwa,fc:fc,tot:kwa.length,pct:pct}});
-        var ckt=0,ckf=0;qr.forEach(function(q){ckt+=q.tot;ckf+=q.fc});var cp=ckt>0?Math.round((ckf/ckt)*100):0;
-        cRes.push({co:c,ci:ci,qr:qr,kf:ckf,kt:ckt,pct:cp})});
-    var pG=totKW>0?Math.round((fndKW/totKW)*100):0;var deg=Math.round((pG/100)*360);
+        var qr=vq.map(function(q){
+            var ans=(pAns[ci]&&pAns[ci][q._i])||'';
+            var kws=pKW(q.kw);
+            var kwa=kws.map(function(k){return{w:k,f:ans.toLowerCase().indexOf(k)!==-1}});
+            var fc=0;kwa.forEach(function(k){if(k.f)fc++});
+            totKW+=kws.length;fndKW+=fc;
+            var pct=kws.length>0?Math.round((fc/kws.length)*100):(ans.trim().length>0?50:0);
+            return{text:q.text,ans:ans,ref:q.ref,expl:q.expl,kwa:kwa,fc:fc,tot:kwa.length,pct:pct};
+        });
+        var ckt=0,ckf=0;qr.forEach(function(q){ckt+=q.tot;ckf+=q.fc});
+        var cp=ckt>0?Math.round((ckf/ckt)*100):0;
+        cRes.push({co:c,ci:ci,qr:qr,kf:ckf,kt:ckt,pct:cp});
+    });
+    var pG=totKW>0?Math.round((fndKW/totKW)*100):0;
+    var deg=Math.round((pG/100)*360);
     var niv,nC,nT;
     if(pG>=85){niv='Excelente';nC='var(--ok)';nT='Demonstrou conhecimento cirúrgico avançado, com descrições precisas e abrangentes que contemplam os principais aspectos de cada caso.'}
     else if(pG>=65){niv='Muito Bom';nC='var(--pri)';nT='Possui boa base teórica com descrições adequadas, porém com algumas lacunas em pontos específicos que podem ser aprofundados.'}
     else if(pG>=45){niv='Regular';nC='var(--warn)';nT='As respostas apresentam conceitos corretos mas carecem de profundidade técnica. Recomenda-se revisar protocolos de indicação cirúrgica.'}
     else{niv='Necessita Melhoria';nC='var(--err)';nT='As respostas não contemplaram os pontos-chave esperados. Revisar fundamentos dos procedimentos e estudar os casos apresentados.'}
-    var h='<div class="text-center mb-12" style="animation:su .4s ease"><p class="text-sm mb-5" style="color:var(--muted)">Resultado de <strong style="color:var(--txt)">'+esc(pName)+'</strong></p>';
+
+    var h='<div class="text-center mb-12" style="animation:su .4s ease">';
+    h+='<p class="text-sm mb-5" style="color:var(--muted)">Resultado de <strong style="color:var(--txt)">'+esc(pName)+'</strong></p>';
     h+='<div class="score-c mx-auto mb-5" style="--deg:'+deg+'deg"><span class="text-5xl font-bold" style="color:'+nC+'">'+pG+'%</span><span class="text-xs font-medium" style="color:var(--muted)">'+fndKW+'/'+totKW+' palavras-chave</span></div>';
     h+='<div class="badge mb-3" style="background:'+nC+'15;color:'+nC+';border:1px solid '+nC+'30;font-size:13px;padding:5px 16px">'+niv+'</div>';
-    h+='<p class="text-sm max-w-xl mx-auto leading-relaxed" style="color:var(--muted)">'+nT+'</p></div><div class="divider mb-8"></div>';
+    h+='<p class="text-sm max-w-xl mx-auto leading-relaxed" style="color:var(--muted)">'+nT+'</p>';
+    h+='</div><div class="divider mb-8"></div>';
+
     h+='<div class="mb-8"><h3 class="text-lg font-bold mb-5">Desempenho por Caso</h3><div class="result-grid">';
-    cRes.forEach(function(cr,idx){var cC=cr.pct>=75?'var(--ok)':cr.pct>=45?'var(--warn)':'var(--err)';var cL=cr.pct>=75?'Bom':cr.pct>=45?'Regular':'Fraco';
+    cRes.forEach(function(cr,idx){
+        var cC=cr.pct>=75?'var(--ok)':cr.pct>=45?'var(--warn)':'var(--err)';
+        var cL=cr.pct>=75?'Bom':cr.pct>=45?'Regular':'Fraco';
         var ts=esc(cr.co.title);if(ts.length>50)ts=ts.substring(0,50)+'...';
-        h+='<div class="card text-center" style="animation:su .4s ease;animation-delay:'+(idx*80)+'ms;animation-fill-mode:both"><p class="text-xs font-bold tracking-widest mb-1" style="color:var(--pri)">CASO '+(cr.ci+1)+'</p>';
+        h+='<div class="card text-center" style="animation:su .4s ease;animation-delay:'+(idx*80)+'ms;animation-fill-mode:both">';
+        h+='<p class="text-xs font-bold tracking-widest mb-1" style="color:var(--pri)">CASO '+(cr.ci+1)+'</p>';
         h+='<p class="font-bold text-sm mb-3 leading-snug" style="font-family:Playfair Display,serif">'+ts+'</p>';
         h+='<div class="text-3xl font-bold mb-1" style="color:'+cC+';font-family:Playfair Display,serif">'+cr.pct+'%</div>';
         h+='<p class="text-xs mb-3" style="color:var(--muted)">'+cr.kf+'/'+cr.kt+' palavras-chave</p>';
-        h+='<span class="badge" style="background:'+cC+'15;color:'+cC+';border:1px solid '+cC+'25">'+cL+'</span></div>'});
+        h+='<span class="badge" style="background:'+cC+'15;color:'+cC+';border:1px solid '+cC+'25">'+cL+'</span>';
+        h+='</div>';
+    });
     h+='</div></div><div class="divider mb-8"></div>';
+
     h+='<div><h3 class="text-lg font-bold mb-5">Análise Detalhada por Pergunta</h3><div class="space-y-3">';
-    cRes.forEach(function(cr){cr.qr.forEach(function(q,qi){var iC=q.pct>=70?'var(--ok)':'var(--err)';var iT=q.pct>=70?q.pct+'% \u2014 Bom':q.pct+'% \u2014 Insuficiente';
-        var ts=esc(q.text);if(ts.length>85)ts=ts.substring(0,85)+'...';
-        h+='<div class="q-card"><div class="q-head" onclick="tgQ(this)"><div class="flex items-center gap-3"><span class="circle-ind" style="background:'+iC+'"></span><div><span class="text-xs font-bold tracking-wide" style="color:var(--pri)">CASO '+(cr.ci+1)+' \u2014 PERGUNTA '+(qi+1)+'</span><p class="text-sm font-medium mt-0.5 leading-snug">'+ts+'</p></div></div>';
-        h+='<div class="flex items-center gap-3"><span class="badge hidden md:inline-block" style="background:'+iC+'12;color:'+iC+';border:1px solid '+iC+'25">'+iT+'</span><span style="color:var(--muted);transition:transform .3s;display:inline-block" class="chev">\u25BC</span></div></div>';
-        h+='<div class="q-body"><p class="text-sm font-semibold mb-4 leading-relaxed">'+esc(q.text)+'</p>';
-        h+='<div class="mb-5"><p class="label mb-2">Palavras-chave</p><div class="flex flex-wrap gap-1">';
-        q.kwa.forEach(function(k){h+='<span class="kw-tag '+(k.f?'kw-found':'kw-miss')+'">'+(k.f?'\u2713 ':'\u2717 ')+esc(k.w)+'</span>'});
-        h+='</div><p class="text-xs mt-2" style="color:var(--muted)">'+q.fc+' de '+q.tot+' encontradas ('+q.pct+'%)</p></div>';
-        h+='<div class="resp-grid mb-5"><div><p class="label mb-2">Sua Resposta</p><div class="p-3 rounded-lg text-sm leading-relaxed" style="background:var(--bg);border:1px solid var(--bdr-l);white-space:pre-line;max-height:280px;overflow-y:auto">'+(q.ans.trim()?esc(q.ans):'<span style="color:var(--muted);font-style:italic">Sem resposta</span>')+'</div></div>';
-        h+='<div><p class="label mb-2">Resposta de Referência</p><div class="p-3 rounded-lg text-sm leading-relaxed" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line;max-height:280px;overflow-y:auto">'+esc(q.ref)+'</div></div></div>';
-        if(q.expl)h+='<div class="p-4 rounded-lg" style="background:var(--pri-l);border:1px solid rgba(0,137,123,.15)"><p class="label mb-1">Explicação Complementar</p><p class="text-sm leading-relaxed" style="color:var(--txt2);white-space:pre-line">'+esc(q.expl)+'</p></div>';
-        h+='</div></div>'})});
-    h+='</div></div><div class="divider my-10"></div><div class="text-center mb-10"><button type="button" onclick="goDash()" class="btn-s mr-3">\u2190 Voltar ao Dashboard</button><button type="button" onclick="retryEval()" class="btn-d">Refazer Avaliação</button></div>';
+    cRes.forEach(function(cr){
+        cr.qr.forEach(function(q,qi){
+            var iC=q.pct>=70?'var(--ok)':'var(--err)';
+            var iT=q.pct>=70?q.pct+'% — Bom':q.pct+'% — Insuficiente';
+            var ts=esc(q.text);if(ts.length>85)ts=ts.substring(0,85)+'...';
+            h+='<div class="q-card"><div class="q-head" onclick="tgQ(this)"><div class="flex items-center gap-3"><span class="circle-ind" style="background:'+iC+'"></span><div><span class="text-xs font-bold tracking-wide" style="color:var(--pri)">CASO '+(cr.ci+1)+' — PERGUNTA '+(qi+1)+'</span><p class="text-sm font-medium mt-0.5 leading-snug">'+ts+'</p></div></div>';
+            h+='<div class="flex items-center gap-3"><span class="badge hidden md:inline-block" style="background:'+iC+'12;color:'+iC+';border:1px solid '+iC+'25">'+iT+'</span><span style="color:var(--muted);transition:transform .3s;display:inline-block" class="chev">\u25BC</span></div></div>';
+            h+='<div class="q-body"><p class="text-sm font-semibold mb-4 leading-relaxed">'+esc(q.text)+'</p>';
+            h+='<div class="mb-5"><p class="label mb-2">Palavras-chave</p><div class="flex flex-wrap gap-1">';
+            q.kwa.forEach(function(k){h+='<span class="kw-tag '+(k.f?'kw-found':'kw-miss')+'">'+(k.f?'\u2713 ':'\u2717 ')+esc(k.w)+'</span>'});
+            h+='</div><p class="text-xs mt-2" style="color:var(--muted)">'+q.fc+' de '+q.tot+' encontradas ('+q.pct+'%)</p></div>';
+            h+='<div class="resp-grid mb-5"><div><p class="label mb-2">Sua Resposta</p><div class="p-3 rounded-lg text-sm leading-relaxed" style="background:var(--bg);border:1px solid var(--bdr-l);white-space:pre-line;max-height:280px;overflow-y:auto">'+(q.ans.trim()?esc(q.ans):'<span style="color:var(--muted);font-style:italic">Sem resposta</span>')+'</div></div>';
+            h+='<div><p class="label mb-2">Resposta de Referência</p><div class="p-3 rounded-lg text-sm leading-relaxed" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line;max-height:280px;overflow-y:auto">'+esc(q.ref)+'</div></div></div>';
+            if(q.expl) h+='<div class="p-4 rounded-lg" style="background:var(--pri-l);border:1px solid rgba(0,137,123,.15)"><p class="label mb-1">Explicação Complementar</p><p class="text-sm leading-relaxed" style="color:var(--txt2);white-space:pre-line">'+esc(q.expl)+'</p></div>';
+            h+='</div></div>';
+        });
+    });
+    h+='</div></div><div class="divider my-10"></div>';
+    h+='<div class="text-center mb-10"><button type="button" onclick="goDash()" class="btn-s mr-3">\u2190 Voltar ao Dashboard</button><button type="button" onclick="retryEval()" class="btn-d">Refazer Avaliação</button></div>';
     $('rBody').innerHTML=h;
 }
 
