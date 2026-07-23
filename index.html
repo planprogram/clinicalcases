@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Avaliação de Casos Clínicos</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -198,8 +200,18 @@
 var cases=[],aTab=0,pName='',pAns={},vCase=-1;
 var MAX_Q=5,PASS='medartis@2026';
 var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
+var FB_DB_TOKEN=''; // Opcional: token/secret para autenticacao REST.
+var FB_AUTH_MODE='none'; // 'none' ou 'anon'.
+var FB_CONFIG={
+    apiKey:'',
+    authDomain:'',
+    projectId:'',
+    appId:''
+};
 var useRemote=false;
 var adminParticipants=[],adminByKey={},adminLoading=false;
+var lastDbError='';
+var authStatus='';
 
 function $(i){return document.getElementById(i)}
 function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');window.scrollTo(0,0)}
@@ -246,11 +258,46 @@ function updateStorageHint(){
     var el=$('storageHint');
     if(!el)return;
     el.textContent=useRemote
-        ?'Dados armazenados em nuvem (Firebase Realtime Database). Admin e participante podem usar dispositivos diferentes.'
+        ?('Dados armazenados em nuvem (Firebase Realtime Database). '+(authStatus||'Admin e participante podem usar dispositivos diferentes.'))
         :'Banco remoto indisponível. Verifique a configuração do Firebase.';
 }
 
-function initDb(){
+function hasFirebaseConfig(){
+    return !!(FB_CONFIG&&FB_CONFIG.apiKey&&FB_CONFIG.authDomain&&FB_CONFIG.projectId&&FB_CONFIG.appId);
+}
+
+async function initFirebaseAuth(){
+    if(FB_AUTH_MODE!=='anon'){
+        authStatus='Modo sem autenticacao.';
+        return;
+    }
+    if(FB_DB_TOKEN){
+        authStatus='Token REST configurado manualmente.';
+        return;
+    }
+    if(typeof firebase==='undefined'||!firebase.auth||!firebase.initializeApp){
+        authStatus='SDK Firebase Auth nao carregado.';
+        return;
+    }
+    if(!hasFirebaseConfig()){
+        authStatus='FB_CONFIG incompleto para login anonimo.';
+        return;
+    }
+    try{
+        if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+        var auth=firebase.auth();
+        var cred=auth.currentUser?{user:auth.currentUser}:await auth.signInAnonymously();
+        var user=cred&&cred.user?cred.user:auth.currentUser;
+        if(!user)throw new Error('Usuario anonimo nao disponivel');
+        FB_DB_TOKEN=await user.getIdToken(true);
+        authStatus='Autenticado anonimamente no Firebase.';
+    }catch(e){
+        authStatus='Falha no login anonimo: '+(e&&e.message?e.message:'erro desconhecido');
+        throw e;
+    }
+}
+
+async function initDb(){
     if(!FB_DB_URL){
         useRemote=false;
         updateStorageHint();
@@ -263,7 +310,27 @@ function initDb(){
         console.error('Falha ao iniciar Firebase:',e);
         useRemote=false;
     }
+    if(useRemote){
+        try{
+            await initFirebaseAuth();
+        }catch(e){
+            console.error('Falha ao autenticar no Firebase:',e);
+        }
+    }
     updateStorageHint();
+}
+
+function buildDbUrl(path){
+    var url=FB_DB_URL+'/'+path+'.json';
+    if(FB_DB_TOKEN)url+=(url.indexOf('?')===-1?'?':'&')+'auth='+encodeURIComponent(FB_DB_TOKEN);
+    return url;
+}
+
+function explainDbError(err){
+    if(!err)return 'Erro desconhecido no Firebase.';
+    if(err.isPermission)return 'Permissao negada no Firebase (401/403). Ajuste as Rules do Realtime Database ou preencha FB_DB_TOKEN.';
+    if(typeof err.message==='string'&&/failed to fetch|networkerror/i.test(err.message))return 'Falha de conexao com o Firebase. Verifique internet/URL.';
+    return err.message||'Erro desconhecido no Firebase.';
 }
 
 function fbKeyFromName(name){
@@ -278,11 +345,15 @@ async function dbReq(path,method,body){
     if(!useRemote||!FB_DB_URL)throw new Error('Firebase não configurado');
     var opts={method:method||'GET',headers:{}};
     if(body!==undefined){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}
-    var res=await fetch(FB_DB_URL+'/'+path+'.json',opts);
+    var res=await fetch(buildDbUrl(path),opts);
     if(!res.ok){
         var txt='';
         try{txt=await res.text()}catch(e){}
-        throw new Error('Firebase '+res.status+(txt?(' - '+txt):''));
+        var err=new Error('Firebase '+res.status+(txt?(' - '+txt):''));
+        err.status=res.status;
+        err.raw=txt;
+        err.isPermission=(res.status===401||res.status===403||/permission denied/i.test(txt||''));
+        throw err;
     }
     return res.json();
 }
@@ -301,6 +372,7 @@ async function dbLoadCases(){
 
 async function dbSaveCases(nextCases){
     if(!useRemote)return false;
+    lastDbError='';
     try{
         await dbReq('app_state/global','PUT',{
             cases_json:nextCases,
@@ -309,6 +381,7 @@ async function dbSaveCases(nextCases){
         return true;
     }catch(e){
         console.error('Erro ao salvar casos (firebase):',e);
+        lastDbError=explainDbError(e);
         return false;
     }
 }
@@ -338,6 +411,7 @@ async function dbSaveAnswers(name,answers){
         return true;
     }catch(e){
         console.error('Erro ao salvar respostas (firebase):',e);
+        lastDbError=explainDbError(e);
         return false;
     }
 }
@@ -567,7 +641,7 @@ async function saveAll(){
         for(var qi=0;qi<c.qs.length;qi++){var q=c.qs[qi];if(q.text.trim()){if(!q.ref.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem resposta de referência');if(!q.kw.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem palavras-chave')}}}
     if(!hasAny){toast('Preencha pelo menos um caso','warn');return}
     if(errors.length){toast('Corrija: '+errors[0],'err');return}
-    if(!await dbSaveCases(cases)){toast('Erro ao salvar na nuvem. Verifique conexão e permissões.','err');return}
+    if(!await dbSaveCases(cases)){toast('Erro ao salvar na nuvem: '+(lastDbError||'verifique conexao e permissoes.'),'err');return}
     renATabs();
     renAdminSummary();
     toast('Casos salvos com sucesso','ok');
@@ -575,7 +649,7 @@ async function saveAll(){
 async function resetAll(){
     if(!confirm('Limpar todos os casos?'))return;
     cases=[];for(var i=0;i<5;i++)cases.push(mkC());
-    if(!await dbSaveCases(cases)){toast('Erro ao limpar casos na nuvem','err');return}
+    if(!await dbSaveCases(cases)){toast('Erro ao limpar casos na nuvem: '+(lastDbError||'falha de gravacao.'),'err');return}
     renATabs();renABody();renAdminSummary();toast('Casos removidos','info');
 }
 
@@ -782,7 +856,7 @@ async function retryEval(){
 
 async function boot(){
     try {
-        initDb();
+        await initDb();
         await initCases();
     } catch(e) {
         console.error("Falha crítica na inicialização:", e);
