@@ -209,7 +209,7 @@
 
 <script>
 var cases=[],aTab=0,pName='',pAns={},vCase=-1;
-var MAX_Q=5,PASS='medartis@2026';
+var MAX_Q=5,MAX_CASES=20,PASS='medartis@2026';
 var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
 var FB_DB_TOKEN=''; // Opcional: token/secret para autenticacao REST.
 var FB_AUTH_MODE='none'; // 'none' ou 'anon'.
@@ -462,8 +462,13 @@ async function dbLoadAllAnswers(){
 }
 
 function normalizeCases(){
-    if(!Array.isArray(cases)||cases.length!==5){cases=[];for(var i=0;i<5;i++)cases.push(mkC())}
+    if(!Array.isArray(cases))cases=[];
+    if(cases.length===0){for(var i=0;i<5;i++)cases.push(mkC())}
+    while(cases.length<5)cases.push(mkC());
+    while(cases.length>MAX_CASES)cases.pop();
+    if(aTab>=cases.length)aTab=Math.max(0,cases.length-1);
     cases.forEach(function(c){
+        if(!c||typeof c!=='object')c={};
         if(!Array.isArray(c.qs)||c.qs.length===0)c.qs=[mkQ()];
         c.qs.forEach(function(q){
             if(typeof q.text!=='string')q.text='';
@@ -764,15 +769,27 @@ async function enterDash(){var n=$('pNameIn').value.trim();if(!n){toast('Informe
 function goDash(){renDash();show('sDash')}
 
 /* Admin: abas */
+function addCase(){
+    if(cases.length>=MAX_CASES){toast('Máximo de '+MAX_CASES+' casos atingido','warn');return}
+    cases.push(mkC());
+    aTab=cases.length-1;
+    renATabs();
+    renABody();
+    renAdminSummary();
+    toast('Caso adicionado com sucesso','ok');
+}
 function renATabs(){
+    if(aTab>=cases.length)aTab=Math.max(0,cases.length-1);
     var h='';
-    for(var i=0;i<5;i++){var c=cases[i];var ok=c.title&&c.desc&&c.qs.some(function(q){return q.text&&q.ref});h+='<button type="button" class="tab '+(i===aTab?'on':'')+'" onclick="swTab('+i+')">'+(ok?'\u25CF ':'\u25CB ')+'Caso '+(i+1)+'</button>'}
+    for(var i=0;i<cases.length;i++){var c=cases[i];var ok=c.title&&c.desc&&c.qs.some(function(q){return q.text&&q.ref});h+='<button type="button" class="tab '+(i===aTab?'on':'')+'" onclick="swTab('+i+')">'+(ok?'\u25CF ':'\u25CB ')+'Caso '+(i+1)+'</button>'}
+    if(cases.length<MAX_CASES)h+='<button type="button" onclick="addCase()" class="btn-s text-xs py-2 px-3">+ Adicionar caso</button>';
     $('aTabs').innerHTML=h;
 }
 function swTab(i){aTab=i;renATabs();renABody()}
 
 /* Admin: conteúdo */
 function renABody(){
+    if(aTab>=cases.length)aTab=Math.max(0,cases.length-1);
     var c=cases[aTab],i=aTab,h='<div class="space-y-6">';
     h+='<div><label class="label">Título do Caso Clínico</label><input class="inp text-base font-semibold" value="'+esc(c.title)+'" oninput="cases['+i+'].title=this.value" placeholder="Ex: Fratura exposta de tíbia direita — Gustilo IIIA em paciente diabético"></div>';
     h+='<div><label class="label">Imagem Clínica / Radiológica</label><div class="drop" onclick="$(\'fi_'+i+'\').click()" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');hDrop('+i+',event)"><input type="file" id="fi_'+i+'" accept="image/*" style="display:none" onchange="hFile('+i+',this.files[0])">';
@@ -812,7 +829,7 @@ function rmQ(ci,qi){if(cases[ci].qs.length<=1)return;cases[ci].qs.splice(qi,1);r
 /* Salvar */
 async function saveAll(){
     var hasAny=false,errors=[];
-    for(var i=0;i<5;i++){var c=cases[i];if(!c.title.trim()&&!c.desc.trim()&&!c.img&&!c.qs.some(function(q){return q.text.trim()}))continue;hasAny=true;
+    for(var i=0;i<cases.length;i++){var c=cases[i];if(!c.title.trim()&&!c.desc.trim()&&!c.img&&!c.qs.some(function(q){return q.text.trim()}))continue;hasAny=true;
         if(!c.title.trim())errors.push('Caso '+(i+1)+': sem título');if(!c.desc.trim())errors.push('Caso '+(i+1)+': sem descrição');
         for(var qi=0;qi<c.qs.length;qi++){var q=c.qs[qi];if(q.text.trim()){if(!q.ref.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem resposta de referência');if(!q.kw.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem palavras-chave')}}}
     if(!hasAny){toast('Preencha pelo menos um caso','warn');return}
