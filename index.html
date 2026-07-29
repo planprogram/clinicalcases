@@ -106,6 +106,17 @@
     </div>
 </div>
 
+<!-- MODAL TODAS AS RESPOSTAS DE REFERÊNCIA -->
+<div id="allAnswersModal" class="modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:200;background:rgba(27,42,61,.5);backdrop-filter:blur(6px);animation:fi .2s ease" onclick="if(event.target===this)closeAllAnswers()">
+    <div class="modal-box" style="max-width:800px;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold">Todas as Respostas de Referência</h3>
+            <button type="button" onclick="closeAllAnswers()" class="btn-s text-xs">Fechar</button>
+        </div>
+        <div id="allAnswersBody"></div>
+    </div>
+</div>
+
 <!-- INICIAL -->
 <div id="sLanding" class="screen active">
     <div class="min-h-screen flex flex-col" style="background:linear-gradient(180deg,#fff 0%,var(--bg) 100%)">
@@ -178,7 +189,10 @@
                 <div class="sep"></div>
                 <div><p class="text-sm font-semibold" id="dTitle"></p><p class="text-xs" style="color:var(--muted)" id="dSub"></p></div>
             </div>
-            <button type="button" onclick="submitAns()" class="btn-p text-xs py-2 px-5">Finalizar Avaliação</button>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="showAllAnswers()" class="btn-s text-xs py-2 px-3">Respostas de Referência</button>
+                <button type="button" onclick="submitAns()" class="btn-p text-xs py-2 px-5">Finalizar Avaliação</button>
+            </div>
         </div>
     </header>
     <div class="max-w-5xl mx-auto px-4 md:px-6 py-8"><div id="dBody"></div></div>
@@ -917,15 +931,17 @@ function openC(ci){
             h+='<span class="text-xs" style="color:var(--muted)">Pendente</span>';
         }
         h+='</div>';
+        h+='<button type="button" id="refToggle_'+ci+'_'+q._i+'" onclick="toggleAnswer('+ci+','+q._i+')" class="btn-s text-xs py-1 px-3 mt-3 w-full">Mostrar resposta de referência</button>';
+        h+='<div id="ref_'+ci+'_'+q._i+'" class="hidden mt-3 p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line">'+esc(q.ref)+'</div>';
         h+='</div>';
     }
 
     h+='</div></div>';
 
     /* Botões de navegação */
-    h+='<div class="flex justify-between pt-4">';
+    h+='<div class="flex flex-wrap justify-between gap-3 pt-4">';
     h+='<button type="button" onclick="goDash()" class="btn-s">\u2190 Voltar</button>';
-    h+='<button type="button" onclick="goDash()" class="btn-p">Salvar e Voltar</button>';
+    h+='<div class="flex flex-wrap gap-2"><button type="button" onclick="showAllAnswers()" class="btn-s text-xs">Ver respostas de referência</button><button type="button" onclick="goDash()" class="btn-p">Salvar e Voltar</button></div>';
     h+='</div>';
 
     h+='</div>';
@@ -946,6 +962,15 @@ function onAns(ci,qi,el){
     }
     clearTimeout(_debTimer);
     _debTimer=setTimeout(function(){saveAns()},400);
+}
+
+function toggleAnswer(ci,qi){
+    var answer=$('ref_'+ci+'_'+qi);
+    var button=$('refToggle_'+ci+'_'+qi);
+    if(!answer||!button)return;
+    var isHidden=answer.classList.contains('hidden');
+    answer.classList.toggle('hidden',!isHidden);
+    button.textContent=isHidden?'Ocultar resposta de referência':'Mostrar resposta de referência';
 }
 
 /* Submissão */
@@ -1045,6 +1070,40 @@ async function retryEval(){
     await dbDeleteAnswers(pName);
     goDash();
     toast('Respostas apagadas','info');
+}
+
+function showAllAnswers(){
+    var avail=cases.filter(function(c){return c.title.trim()});
+    var h='<div class="space-y-6">';
+    var count=0;
+    avail.forEach(function(c){
+        var ci=cases.indexOf(c);
+        c.qs.forEach(function(q,qi){
+            if(q.text.trim() && q.ref.trim()){
+                count++;
+                h+='<div class="card">';
+                h+='<div class="flex items-center gap-2 mb-2"><span class="badge" style="background:var(--pri-l);color:var(--pri)">CASO '+(ci+1)+', Q'+(qi+1)+'</span><p class="text-sm font-semibold">'+esc(q.text)+'</p></div>';
+                h+='<div class="p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line">'+esc(q.ref)+'</div>';
+                if(q.expl) h+='<div class="mt-2 p-2 rounded text-xs" style="background:var(--pri-l);border:1px solid rgba(0,137,123,.15)"><p class="font-semibold mb-1">Explicação Complementar:</p><p style="color:var(--txt2)">'+esc(q.expl)+'</p></div>';
+                h+='</div>';
+            }
+        });
+    });
+    if(!count)h+='<p class="text-sm" style="color:var(--muted)">Nenhuma resposta de referência disponível.</p>';
+    h+='</div>';
+    var modalBody=$('allAnswersBody');
+    if(modalBody){
+        modalBody.innerHTML=h;
+        var modal=$('allAnswersModal');
+        if(modal){
+            modal.style.display='flex';
+        }
+    }
+}
+
+function closeAllAnswers(){
+    var modal=$('allAnswersModal');
+    if(modal)modal.style.display='none';
 }
 
 async function boot(){
