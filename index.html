@@ -5,78 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Avaliação de Casos Clínicos</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg:#F7F9FA;--bg2:#EEF1F3;--card:#FFFFFF;
-            --bdr:#D8DEE3;--bdr-l:#E8ECEF;
-            --txt:#1B2A3D;--txt2:#3A4A5C;--muted:#7A8A9A;
-            --pri:#00897B;--pri-d:#00695C;--pri-l:#E0F2F1;--pri-g:rgba(0,137,123,.15);
-            --ok:#2E7D32;--ok-l:#E8F5E9;--err:#C62828;--err-l:#FFEBEE;
-            --acc:#E65100;--acc-l:#FFF3E0;--warn:#F57F17;--warn-l:#FFFDE7;
-        }
+        :root{--bg:#F7F9FA;--bg2:#EEF1F3;--card:#FFF;--bdr:#D8DEE3;--bdr-l:#E8ECEF;--txt:#1B2A3D;--txt2:#3A4A5C;--muted:#7A8A9A;--pri:#00897B;--pri-d:#00695C;--pri-l:#E0F2F1;--pri-g:rgba(0,137,123,.15);--ok:#2E7D32;--ok-l:#E8F5E9;--err:#C62828;--err-l:#FFEBEE;--acc:#E65100;--acc-l:#FFF3E0;--warn:#F57F17;--warn-l:#FFFDE7;--oa:#00897B;--oa-l:#E0F2F1;--ob:#E65100;--ob-l:#FFF3E0;--oc:#1565C0;--oc-l:#E3F2FD;--od:#7B1FA2;--od-l:#F3E5F5}
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
         h1,h2,h3,h4{font-family:'Playfair Display',serif;font-weight:600}
-        .screen{display:none;min-height:100vh;animation:fi .3s ease}
-        .screen.active{display:block}
+        .screen{display:none;min-height:100vh;animation:fi .3s ease}.screen.active{display:block}
         @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
         @keyframes su{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
         @keyframes pd{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
         @keyframes sr{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
-        .btn-p{background:var(--pri);color:#fff;border:none;padding:11px 26px;border-radius:6px;font-weight:600;font-size:14px;cursor:pointer;transition:all .25s;font-family:'DM Sans',sans-serif}
-        .btn-p:hover{background:var(--pri-d);transform:translateY(-1px);box-shadow:0 4px 16px var(--pri-g)}
-        .btn-s{background:var(--card);color:var(--txt2);border:1px solid var(--bdr);padding:10px 22px;border-radius:6px;font-weight:500;font-size:14px;cursor:pointer;transition:all .25s;font-family:'DM Sans',sans-serif}
-        .btn-s:hover{border-color:var(--pri);color:var(--pri)}
-        .btn-d{background:transparent;color:var(--err);border:1px solid rgba(198,40,40,.2);padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;transition:all .25s;font-family:'DM Sans',sans-serif}
-        .btn-d:hover{background:var(--err-l);border-color:var(--err)}
-        .inp{background:#fff;border:1px solid var(--bdr);color:var(--txt);padding:10px 14px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:14px;width:100%;transition:border-color .25s,box-shadow .25s;line-height:1.5}
-        .inp:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-g)}
-        .inp::placeholder{color:var(--muted)}
-        textarea.inp{resize:vertical;min-height:90px}
-        .card{background:var(--card);border:1px solid var(--bdr-l);border-radius:10px;padding:24px;transition:box-shadow .25s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-        .card:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
-        .tab{padding:10px 18px;border-radius:8px 8px 0 0;font-weight:600;font-size:13px;cursor:pointer;border:1px solid transparent;border-bottom:none;background:transparent;color:var(--muted);transition:all .25s;font-family:'DM Sans',sans-serif}
-        .tab.on{background:var(--card);color:var(--pri);border-color:var(--bdr-l)}
-        .tab:not(.on):hover{color:var(--txt)}
-        .drop{border:2px dashed var(--bdr);border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:all .25s;background:#FAFBFC}
-        .drop:hover,.drop.over{border-color:var(--pri);background:var(--pri-l)}
-        .drop img{max-width:100%;max-height:260px;border-radius:6px;object-fit:contain}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .btn-p{background:var(--pri);color:#fff;border:none;padding:11px 26px;border-radius:6px;font-weight:600;font-size:14px;cursor:pointer;transition:all .25s;font-family:inherit}.btn-p:hover{background:var(--pri-d);transform:translateY(-1px);box-shadow:0 4px 16px var(--pri-g)}
+        .btn-s{background:var(--card);color:var(--txt2);border:1px solid var(--bdr);padding:10px 22px;border-radius:6px;font-weight:500;font-size:14px;cursor:pointer;transition:all .25s;font-family:inherit}.btn-s:hover{border-color:var(--pri);color:var(--pri)}
+        .btn-d{background:transparent;color:var(--err);border:1px solid rgba(198,40,40,.2);padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;transition:all .25s;font-family:inherit}.btn-d:hover{background:var(--err-l);border-color:var(--err)}
+        .inp{background:#fff;border:1px solid var(--bdr);color:var(--txt);padding:10px 14px;border-radius:6px;font-family:inherit;font-size:14px;width:100%;transition:border-color .25s,box-shadow .25s;line-height:1.5}.inp:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-g)}.inp::placeholder{color:var(--muted)}
+        textarea.inp{resize:vertical;min-height:80px}
+        .card{background:var(--card);border:1px solid var(--bdr-l);border-radius:10px;padding:24px;transition:box-shadow .25s;box-shadow:0 1px 3px rgba(0,0,0,.04)}.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
+        .tab{padding:10px 18px;border-radius:8px 8px 0 0;font-weight:600;font-size:13px;cursor:pointer;border:1px solid transparent;border-bottom:none;background:transparent;color:var(--muted);transition:all .25s;font-family:inherit;white-space:nowrap}.tab.on{background:var(--card);color:var(--pri);border-color:var(--bdr-l)}.tab:not(.on):hover{color:var(--txt)}
+        .drop{border:2px dashed var(--bdr);border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:all .25s;background:#FAFBFC}.drop:hover,.drop.over{border-color:var(--pri);background:var(--pri-l)}.drop img{max-width:100%;max-height:260px;border-radius:6px;object-fit:contain}
         .toast{padding:13px 18px;border-radius:8px;font-size:13px;font-weight:500;animation:su .25s ease;max-width:420px;box-shadow:0 8px 30px rgba(0,0,0,.12)}
-        .t-ok{background:var(--ok-l);color:var(--ok);border:1px solid rgba(46,125,50,.2)}
-        .t-err{background:var(--err-l);color:var(--err);border:1px solid rgba(198,40,40,.15)}
-        .t-info{background:var(--pri-l);color:var(--pri-d);border:1px solid rgba(0,137,123,.2)}
-        .t-warn{background:var(--warn-l);color:var(--warn);border:1px solid rgba(245,127,23,.2)}
-        .score-c{width:180px;height:180px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:'Playfair Display',serif;position:relative;animation:sr .5s ease}
-        .score-c::before{content:'';position:absolute;inset:0;border-radius:50%;padding:5px;background:conic-gradient(var(--pri) var(--deg,0deg),var(--bdr) var(--deg,0deg));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
-        .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-        .dot.pend{background:var(--muted)}.dot.prog{background:var(--warn);animation:pd 1.5s infinite}.dot.done{background:var(--ok)}
-        .pbar{height:4px;background:var(--bg2);border-radius:2px;overflow:hidden}
-        .pfill{height:100%;background:var(--pri);border-radius:2px;transition:width .5s ease}
-        .q-card{border:1px solid var(--bdr-l);border-radius:10px;overflow:hidden;background:var(--card)}
-        .q-head{padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .2s}
-        .q-head:hover{background:var(--bg2)}
-        .q-body{padding:0 18px;max-height:0;overflow:hidden;transition:all .35s ease}
-        .q-body.open{max-height:5000px;padding:0 18px 18px}
+        .t-ok{background:var(--ok-l);color:var(--ok);border:1px solid rgba(46,125,50,.2)}.t-err{background:var(--err-l);color:var(--err);border:1px solid rgba(198,40,40,.15)}.t-info{background:var(--pri-l);color:var(--pri-d);border:1px solid rgba(0,137,123,.2)}.t-warn{background:var(--warn-l);color:var(--warn);border:1px solid rgba(245,127,23,.2)}
+        .dot{width:8px;height:8px;border-radius:50%;display:inline-block}.dot.pend{background:var(--muted)}.dot.prog{background:var(--warn);animation:pd 1.5s infinite}.dot.done{background:var(--ok)}
+        .pbar{height:6px;background:var(--bg2);border-radius:3px;overflow:hidden}.pfill{height:100%;background:var(--pri);border-radius:3px;transition:width .5s ease}
+        .header-bar{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--bdr-l)}
         .modal-bg{position:fixed;inset:0;z-index:100;background:rgba(27,42,61,.5);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;animation:fi .2s ease}
         .modal-box{background:var(--card);border-radius:12px;padding:32px;max-width:400px;width:90%;animation:su .25s ease;box-shadow:0 20px 60px rgba(0,0,0,.15)}
-        .kw-tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;margin:2px;font-weight:500}
-        .kw-found{background:var(--ok-l);color:var(--ok);border:1px solid rgba(46,125,50,.2)}
-        .kw-miss{background:var(--err-l);color:var(--err);border:1px solid rgba(198,40,40,.15)}
-        .resp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
-        .result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
-        .header-bar{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--bdr-l)}
-        @media(max-width:767px){.resp-grid{grid-template-columns:1fr}.case-grid{grid-template-columns:1fr}.landing-grid{grid-template-columns:1fr !important}.tab{padding:8px 12px;font-size:11px}.card{padding:16px}.score-c{width:140px;height:140px}}
-        ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
-        .divider{height:1px;background:var(--bdr-l)}
         .label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px}
         .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
-        .circle-ind{width:12px;height:12px;border-radius:50%;flex-shrink:0}
-        .num-c{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:var(--pri-l);color:var(--pri)}
+        .divider{height:1px;background:var(--bdr-l)}
         .sep{width:1px;height:24px;background:var(--bdr);flex-shrink:0}
+        .opt-card{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid var(--bdr-l);border-radius:10px;cursor:pointer;transition:all .2s;background:#fff;margin-bottom:8px}
+        .opt-card:hover{border-color:var(--bdr);background:var(--bg)}
+        .opt-card.sel-a{border-color:var(--oa);background:var(--oa-l)}
+        .opt-card.sel-b{border-color:var(--ob);background:var(--ob-l)}
+        .opt-card.sel-c{border-color:var(--oc);background:var(--oc-l)}
+        .opt-card.sel-d{border-color:var(--od);background:var(--od-l)}
+        .opt-radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--bdr);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:1px}
+        .sel-a .opt-radio{border-color:var(--oa);background:var(--oa)}.sel-b .opt-radio{border-color:var(--ob);background:var(--ob)}.sel-c .opt-radio{border-color:var(--oc);background:var(--oc)}.sel-d .opt-radio{border-color:var(--od);background:var(--od)}
+        .opt-radio::after{content:'';width:8px;height:8px;border-radius:50%;background:#fff}
+        .stat-bar{height:28px;border-radius:6px;transition:width .6s ease;min-width:2px;display:flex;align-items:center;padding:0 10px;font-size:12px;font-weight:600;color:#fff;white-space:nowrap}
+        .stat-bar-a{background:var(--oa)}.stat-bar-b{background:var(--ob)}.stat-bar-c{background:var(--oc)}.stat-bar-d{background:var(--od)}
+        .def-card{border-radius:10px;padding:16px;text-align:center;animation:sr .4s ease both;min-width:120px}
+        .correct-mark{color:var(--ok);font-weight:700;font-size:12px;margin-left:8px}
+        .wrong-mark{color:var(--err);font-weight:700;font-size:12px;margin-left:8px}
+        .spinner{width:18px;height:18px;border:2px solid var(--bdr-l);border-top-color:var(--pri);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
+        .case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+        @media(max-width:767px){.case-grid{grid-template-columns:1fr}.landing-grid{grid-template-columns:1fr!important}.tab{padding:8px 12px;font-size:11px}.card{padding:16px}}
+        ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
     </style>
 </head>
 <body>
@@ -96,24 +73,24 @@
 </div>
 
 <!-- MODAL RESPOSTAS PARTICIPANTE -->
-<div id="modalPResp" class="modal-bg" style="display:none" onclick="if(event.target===this)closeParticipantModal()">
-    <div class="modal-box" style="max-width:980px;max-height:88vh;overflow-y:auto;text-align:left;padding:24px">
+<div id="modalPResp" class="modal-bg" style="display:none" onclick="if(event.target===this)closePResp()">
+    <div class="modal-box" style="max-width:900px;max-height:88vh;overflow-y:auto;text-align:left;padding:24px">
         <div class="flex items-center justify-between mb-4">
-            <h3 id="pRespTitle" class="text-xl font-bold">Respostas do Participante</h3>
-            <button type="button" onclick="closeParticipantModal()" class="btn-s text-xs py-1 px-3">Fechar</button>
+            <h3 id="pRespTitle" class="text-xl font-bold">Respostas</h3>
+            <button type="button" onclick="closePResp()" class="btn-s text-xs py-1 px-3">Fechar</button>
         </div>
         <div id="pRespBody"></div>
     </div>
 </div>
 
-<!-- MODAL TODAS AS RESPOSTAS DE REFERÊNCIA -->
-<div id="allAnswersModal" class="modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:200;background:rgba(27,42,61,.5);backdrop-filter:blur(6px);animation:fi .2s ease" onclick="if(event.target===this)closeAllAnswers()">
-    <div class="modal-box" style="max-width:800px;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+<!-- MODAL DEFENSORES (participante) -->
+<div id="modalDef" class="modal-bg" style="display:none" onclick="if(event.target===this)closeDefModal()">
+    <div class="modal-box" style="max-width:900px;max-height:85vh;overflow-y:auto;text-align:left;padding:24px">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-bold">Todas as Respostas de Referência</h3>
-            <button type="button" onclick="closeAllAnswers()" class="btn-s text-xs">Fechar</button>
+            <h3 class="text-xl font-bold">Defensores Sorteados</h3>
+            <button type="button" onclick="closeDefModal()" class="btn-s text-xs py-1 px-3">Fechar</button>
         </div>
-        <div id="allAnswersBody"></div>
+        <div id="defBody"></div>
     </div>
 </div>
 
@@ -123,24 +100,24 @@
         <div class="flex-1 flex flex-col items-center justify-center px-4">
             <div class="text-center mb-14" style="animation:su .5s ease">
                 <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">Avaliação de<br><span style="color:var(--pri)">Casos Clínicos</span></h1>
-                <p class="text-sm max-w-md mx-auto leading-relaxed" style="color:var(--muted)">Plataforma de análise descritiva de procedimentos cirúrgicos com avaliação comparativa de respostas</p>
+                <p class="text-sm max-w-md mx-auto leading-relaxed" style="color:var(--muted)">Plataforma de avaliação com múltipla escolha, estatísticas em tempo real e sorteio de defensores</p>
                 <div class="divider max-w-xs mx-auto mt-8"></div>
             </div>
             <div class="landing-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:520px;width:100%;animation:su .7s ease">
                 <div onclick="openPass()" class="card cursor-pointer text-center py-10 px-6">
-                    <div class="num-c mx-auto mb-4" style="width:48px;height:48px;font-size:18px">A</div>
+                    <div class="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center text-lg font-bold" style="background:var(--pri-l);color:var(--pri);font-family:Playfair Display,serif">A</div>
                     <h3 class="text-xl font-bold mb-2">Administrador</h3>
-                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Montar casos clínicos e definir respostas descritivas de referência</p>
+                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Criar casos com alternativas, ver estatísticas e sortear defensores</p>
                     <span class="text-xs font-semibold tracking-wide" style="color:var(--pri)">ACESSAR →</span>
                 </div>
                 <div onclick="goName()" class="card cursor-pointer text-center py-10 px-6">
-                    <div class="num-c mx-auto mb-4" style="width:48px;height:48px;font-size:18px;background:var(--acc-l);color:var(--acc)">P</div>
+                    <div class="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center text-lg font-bold" style="background:var(--acc-l);color:var(--acc);font-family:Playfair Display,serif">P</div>
                     <h3 class="text-xl font-bold mb-2">Participante</h3>
-                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Avaliar casos e responder com descrições cirúrgicas detalhadas</p>
+                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Responder questões de múltipla escolha e ver estatísticas ao vivo</p>
                     <span class="text-xs font-semibold tracking-wide" style="color:var(--acc)">ACESSAR →</span>
                 </div>
             </div>
-            <p id="storageHint" class="mt-12 text-xs" style="color:var(--muted)">Dados armazenados localmente. Admin e participante devem usar o mesmo navegador.</p>
+            <p id="storageHint" class="mt-12 text-xs" style="color:var(--muted)">Configure o Firebase para uso multi-dispositivo.</p>
         </div>
     </div>
 </div>
@@ -155,7 +132,7 @@
                 <span class="text-sm font-semibold" style="color:var(--pri);font-family:Playfair Display,serif">Painel Administrativo</span>
             </div>
             <div class="flex gap-2">
-                <button type="button" onclick="loadAdminParticipants()" class="btn-s text-xs py-2 px-3">Atualizar Resumo</button>
+                <button type="button" onclick="loadAdminData()" class="btn-s text-xs py-2 px-3">Atualizar</button>
                 <button type="button" onclick="resetAll()" class="btn-d text-xs">Limpar Tudo</button>
                 <button type="button" onclick="saveAll()" class="btn-p text-xs py-2 px-5">Salvar Casos</button>
             </div>
@@ -180,17 +157,17 @@
     </div>
 </div>
 
-<!-- DASHBOARD -->
+<!-- DASHBOARD PARTICIPANTE -->
 <div id="sDash" class="screen">
     <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
         <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-                <button type="button" onclick="goHome()" class="btn-s text-xs py-2 px-3">Sair</button>
+                <button type="button" onclick="stopPoll();goHome()" class="btn-s text-xs py-2 px-3">Sair</button>
                 <div class="sep"></div>
                 <div><p class="text-sm font-semibold" id="dTitle"></p><p class="text-xs" style="color:var(--muted)" id="dSub"></p></div>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button type="button" onclick="showAllAnswers()" class="btn-s text-xs py-2 px-3">Respostas de Referência</button>
+                <button type="button" onclick="showDefModal()" class="btn-s text-xs py-2 px-3">Defensores</button>
                 <button type="button" onclick="submitAns()" class="btn-p text-xs py-2 px-5">Finalizar Avaliação</button>
             </div>
         </div>
@@ -215,906 +192,735 @@
         <div class="max-w-5xl mx-auto flex items-center justify-between">
             <button type="button" onclick="goDash()" class="btn-s text-xs py-2 px-3">← Voltar</button>
             <span class="text-sm font-semibold" style="color:var(--pri)">Resultado da Avaliação</span>
-            <button type="button" onclick="retryEval()" class="btn-d text-xs">Refazer</button>
+            <div></div>
         </div>
     </header>
     <div class="max-w-5xl mx-auto px-4 md:px-6 py-8"><div id="rBody"></div></div>
 </div>
 
 <script>
+/* ====== ESTADO GLOBAL ====== */
 var cases=[],aTab=0,pName='',pAns={},vCase=-1;
 var MAX_Q=5,MAX_CASES=20,PASS='medartis@2026';
 var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
-var FB_DB_TOKEN=''; // Opcional: token/secret para autenticacao REST.
-var FB_AUTH_MODE='none'; // 'none' ou 'anon'.
-var FB_CONFIG={
-    apiKey:'',
-    authDomain:'',
-    projectId:'',
-    appId:''
-};
+var FB_DB_TOKEN='';
 var useRemote=false;
-var adminParticipants=[],adminByKey={},adminLoading=false;
-var lastDbError='';
-var authStatus='';
+var adminParticipants=[],adminByKey={},cachedAllAns=null;
+var pollTimer=null,saveTimer=null,lastDbError='';
 
+/* ====== UTILITÁRIOS ====== */
 function $(i){return document.getElementById(i)}
 function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');window.scrollTo(0,0)}
-function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
-function toast(m,t){
-    t=t||'info';
-    var c={ok:'t-ok',err:'t-err',info:'t-info',warn:'t-warn'}[t]||'t-info';
-    var e=document.createElement('div');e.className='toast '+c;e.textContent=m;
-    $('toasts').appendChild(e);
-    setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3500);
-}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function toast(m,t){t=t||'info';var c={ok:'t-ok',err:'t-err',info:'t-info',warn:'t-warn'}[t]||'t-info';var e=document.createElement('div');e.className='toast '+c;e.textContent=m;$('toasts').appendChild(e);setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3500)}
+function fmtDate(iso){if(!iso)return'—';try{return new Date(iso).toLocaleString('pt-BR')}catch(e){return'—'}}
+function optColor(l){return{A:'var(--oa)',B:'var(--ob)',C:'var(--oc)',D:'var(--od)'}[l]||'var(--muted)'}
+function optColorL(l){return{A:'var(--oa-l)',B:'var(--ob-l)',C:'var(--oc-l)',D:'var(--od-l)'}[l]||'var(--bg)'}
+function optCls(l){return'sel-'+l.toLowerCase()}
+function optBarCls(l){return'stat-bar-'+l.toLowerCase()}
 
-function fmtDate(iso){
-    if(!iso)return 'Sem data';
-    var d=new Date(iso);
-    if(isNaN(d.getTime()))return 'Sem data';
-    return d.toLocaleString('pt-BR');
+function getConfiguredCases(){
+    var out=[];
+    for(var i=0;i<cases.length;i++){var c=cases[i];if(c&&c.title&&c.title.trim())out.push(i)}
+    return out;
 }
-
 function getTotalQuestions(){
-    var total=0;
-    cases.forEach(function(c){
-        if(!c.title||!c.title.trim())return;
-        c.qs.forEach(function(q){if(q.text&&q.text.trim())total++});
-    });
-    return total;
+    var t=0;
+    getConfiguredCases().forEach(function(ci){cases[ci].qs.forEach(function(q){if(q.text&&q.text.trim())t++})});
+    return t;
 }
-
 function getAnsweredCount(ans){
-    var count=0;
-    if(!ans||typeof ans!=='object')return 0;
-    Object.keys(ans).forEach(function(ci){
-        var perCase=ans[ci];
-        if(!perCase||typeof perCase!=='object')return;
-        Object.keys(perCase).forEach(function(qi){
-            var txt=perCase[qi];
-            if(typeof txt==='string'&&txt.trim())count++;
-        });
+    var c=0;
+    if(!ans)return 0;
+    getConfiguredCases().forEach(function(ci){
+        cases[ci].qs.forEach(function(q,qi){if(q.text&&q.text.trim()&&ans[ci]&&ans[ci][qi])c++});
     });
-    return count;
+    return c;
 }
 
-function updateStorageHint(){
-    var el=$('storageHint');
-    if(!el)return;
-    el.textContent=useRemote
-        ?('Dados armazenados em nuvem (Firebase Realtime Database). '+(authStatus||'Admin e participante podem usar dispositivos diferentes.'))
-        :'Banco remoto indisponível. Verifique a configuração do Firebase.';
+/* ====== FIREBASE (REST) ====== */
+function buildUrl(path){
+    var u=FB_DB_URL.replace(/\/+$/,'')+'/'+path+'.json';
+    if(FB_DB_TOKEN)u+=(u.indexOf('?')===-1?'?':'&')+'auth='+encodeURIComponent(FB_DB_TOKEN);
+    return u;
 }
-
-function hasFirebaseConfig(){
-    return !!(FB_CONFIG&&FB_CONFIG.apiKey&&FB_CONFIG.authDomain&&FB_CONFIG.projectId&&FB_CONFIG.appId);
-}
-
-async function initFirebaseAuth(){
-    if(FB_AUTH_MODE!=='anon'){
-        authStatus='Modo sem autenticacao.';
-        return;
-    }
-    if(FB_DB_TOKEN){
-        authStatus='Token REST configurado manualmente.';
-        return;
-    }
-    if(typeof firebase==='undefined'||!firebase.auth||!firebase.initializeApp){
-        authStatus='SDK Firebase Auth nao carregado.';
-        return;
-    }
-    if(!hasFirebaseConfig()){
-        authStatus='FB_CONFIG incompleto para login anonimo.';
-        return;
-    }
-    try{
-        if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
-        var auth=firebase.auth();
-        var cred=auth.currentUser?{user:auth.currentUser}:await auth.signInAnonymously();
-        var user=cred&&cred.user?cred.user:auth.currentUser;
-        if(!user)throw new Error('Usuario anonimo nao disponivel');
-        FB_DB_TOKEN=await user.getIdToken(true);
-        authStatus='Autenticado anonimamente no Firebase.';
-    }catch(e){
-        authStatus='Falha no login anonimo: '+(e&&e.message?e.message:'erro desconhecido');
-        throw e;
-    }
-}
-
-async function initDb(){
-    if(!FB_DB_URL){
-        useRemote=false;
-        updateStorageHint();
-        return;
-    }
-    try{
-        FB_DB_URL=FB_DB_URL.replace(/\/+$/,'');
-        useRemote=true;
-    }catch(e){
-        console.error('Falha ao iniciar Firebase:',e);
-        useRemote=false;
-    }
-    if(useRemote){
-        try{
-            await initFirebaseAuth();
-        }catch(e){
-            console.error('Falha ao autenticar no Firebase:',e);
-        }
-    }
-    updateStorageHint();
-}
-
-function buildDbUrl(path){
-    var url=FB_DB_URL+'/'+path+'.json';
-    if(FB_DB_TOKEN)url+=(url.indexOf('?')===-1?'?':'&')+'auth='+encodeURIComponent(FB_DB_TOKEN);
-    return url;
-}
-
-function explainDbError(err){
-    if(!err)return 'Erro desconhecido no Firebase.';
-    if(err.isPermission)return 'Permissao negada no Firebase (401/403). Ajuste as Rules do Realtime Database ou preencha FB_DB_TOKEN.';
-    if(typeof err.message==='string'&&/failed to fetch|networkerror/i.test(err.message))return 'Falha de conexao com o Firebase. Verifique internet/URL.';
-    return err.message||'Erro desconhecido no Firebase.';
-}
-
-function fbKeyFromName(name){
-    if(!name)return'';
-    var bytes=new TextEncoder().encode(name.trim().toLowerCase());
-    var bin='';
-    bytes.forEach(function(b){bin+=String.fromCharCode(b)});
-    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-
 async function dbReq(path,method,body){
-    if(!useRemote||!FB_DB_URL)throw new Error('Firebase não configurado');
-    var opts={method:method||'GET',headers:{}};
-    if(body!==undefined){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}
-    var res=await fetch(buildDbUrl(path),opts);
-    if(!res.ok){
-        var txt='';
-        try{txt=await res.text()}catch(e){}
-        var err=new Error('Firebase '+res.status+(txt?(' - '+txt):''));
-        err.status=res.status;
-        err.raw=txt;
-        err.isPermission=(res.status===401||res.status===403||/permission denied/i.test(txt||''));
-        throw err;
-    }
-    return res.json();
+    if(!useRemote)throw new Error('Firebase não configurado');
+    var o={method:method||'GET',headers:{}};
+    if(body!==undefined){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)}
+    var r=await fetch(buildUrl(path),o);
+    if(!r.ok){var t='';try{t=await r.text()}catch(e){}throw new Error('Firebase '+r.status+(t?' - '+t:''))}
+    return r.json();
 }
+async function dbLoadCases(){try{var d=await dbReq('app_state/global','GET');if(Array.isArray(d))return d;if(d&&Array.isArray(d.cases_json))return d.cases_json}catch(e){}return null}
+async function dbSaveCases(c){lastDbError='';try{await dbReq('app_state/global','PUT',{cases_json:c,updated_at:new Date().toISOString()});return true}catch(e){lastDbError=e.message;return false}}
+async function dbLoadAnswers(name){if(!useRemote||!name)return null;var k=btoa(unescape(encodeURIComponent(name.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');try{var d=await dbReq('participant_answers/'+k,'GET');if(d&&d.answers_json)return d.answers_json;return{}}catch(e){return null}}
+async function dbSaveAnswers(name,ans){if(!useRemote||!name)return false;var k=btoa(unescape(encodeURIComponent(name.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');try{await dbReq('participant_answers/'+k,'PUT',{participant_name:name,answers_json:ans,updated_at:new Date().toISOString()});return true}catch(e){lastDbError=e.message;return false}}
+async function dbLoadAllAnswers(){if(!useRemote)return{};try{var d=await dbReq('participant_answers','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
+async function dbDeleteByKey(key){if(!useRemote||!key)return false;try{await dbReq('participant_answers/'+key,'DELETE');return true}catch(e){return false}}
+async function dbSaveDefenders(qKey,data){if(!useRemote)return false;try{await dbReq('defenders/'+qKey,'PUT',data);return true}catch(e){return false}}
+async function dbLoadAllDefenders(){if(!useRemote)return{};try{var d=await dbReq('defenders','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
+async function dbClearAllDefenders(){if(!useRemote)return false;try{await dbReq('defenders','DELETE');return true}catch(e){return false}}
 
-async function dbLoadCases(){
-    if(!useRemote)return null;
-    try{
-        var data=await dbReq('app_state/global','GET');
-        if(Array.isArray(data))return data;
-        if(data&&Array.isArray(data.cases_json))return data.cases_json;
-    }catch(e){
-        console.error('Erro ao carregar casos (firebase):',e);
-    }
-    return null;
-}
-
-async function dbSaveCases(nextCases){
-    if(!useRemote)return false;
-    lastDbError='';
-    try{
-        await dbReq('app_state/global','PUT',{
-            cases_json:nextCases,
-            updated_at:new Date().toISOString()
-        });
-        return true;
-    }catch(e){
-        console.error('Erro ao salvar casos (firebase):',e);
-        lastDbError=explainDbError(e);
-        return false;
-    }
-}
-
-async function dbLoadAnswers(name){
-    if(!useRemote||!name)return null;
-    var key=fbKeyFromName(name);
-    try{
-        var data=await dbReq('participant_answers/'+key,'GET');
-        if(data&&typeof data.answers_json==='object'&&data.answers_json)return data.answers_json;
-        return {};
-    }catch(e){
-        console.error('Erro ao carregar respostas (firebase):',e);
-        return null;
-    }
-}
-
-async function dbSaveAnswers(name,answers){
-    if(!useRemote||!name)return false;
-    var key=fbKeyFromName(name);
-    try{
-        await dbReq('participant_answers/'+key,'PUT',{
-            participant_name:name,
-            answers_json:answers,
-            updated_at:new Date().toISOString()
-        });
-        return true;
-    }catch(e){
-        console.error('Erro ao salvar respostas (firebase):',e);
-        lastDbError=explainDbError(e);
-        return false;
-    }
-}
-
-async function dbDeleteAnswers(name){
-    if(!useRemote||!name)return false;
-    var key=fbKeyFromName(name);
-    try{
-        await dbReq('participant_answers/'+key,'DELETE');
-        return true;
-    }catch(e){
-        console.error('Erro ao remover respostas (firebase):',e);
-        return false;
-    }
-}
-
-async function dbDeleteAnswersByKey(key){
-    if(!useRemote||!key)return false;
-    try{
-        await dbReq('participant_answers/'+key,'DELETE');
-        return true;
-    }catch(e){
-        console.error('Erro ao remover respostas (firebase):',e);
-        return false;
-    }
-}
-
-async function dbLoadAllAnswers(){
-    if(!useRemote)return {};
-    try{
-        var data=await dbReq('participant_answers','GET');
-        return data&&typeof data==='object'?data:{};
-    }catch(e){
-        console.error('Erro ao carregar lista de participantes:',e);
-        return {};
-    }
-}
-
+/* ====== MODELO DE DADOS ====== */
+function mkQ(){return{text:'',options:[{label:'A',text:''},{label:'B',text:''},{label:'C',text:''},{label:'D',text:''}],correct:0,expl:''}}
+function mkC(){return{title:'',img:'',desc:'',qs:[mkQ()]}}
 function normalizeCases(){
     if(!Array.isArray(cases))cases=[];
-    if(cases.length===0){for(var i=0;i<5;i++)cases.push(mkC())}
+    if(cases.length===0)for(var i=0;i<5;i++)cases.push(mkC());
     while(cases.length<5)cases.push(mkC());
     while(cases.length>MAX_CASES)cases.pop();
-    if(aTab>=cases.length)aTab=Math.max(0,cases.length-1);
+    if(aTab>cases.length)aTab=cases.length;
     cases.forEach(function(c){
-        if(!c||typeof c!=='object')c={};
+        if(!c)Object.assign(c,mkC());
         if(!Array.isArray(c.qs)||c.qs.length===0)c.qs=[mkQ()];
+        while(c.qs.length>MAX_Q)c.qs.pop();
         c.qs.forEach(function(q){
             if(typeof q.text!=='string')q.text='';
-            if(typeof q.ref!=='string')q.ref='';
-            if(typeof q.kw!=='string')q.kw='';
+            if(!Array.isArray(q.options))q.options=[{label:'A',text:''},{label:'B',text:''},{label:'C',text:''},{label:'D',text:''}];
+            while(q.options.length<4)q.options.push({label:String.fromCharCode(65+q.options.length),text:''});
+            q.options.forEach(function(o){if(typeof o.text!=='string')o.text=''});
+            if(typeof q.correct!=='number'||q.correct<0||q.correct>3)q.correct=0;
             if(typeof q.expl!=='string')q.expl='';
         });
     });
 }
 
-/* Senha */
+/* ====== ESTATÍSTICAS ====== */
+function computeQStats(ci,qi,allAns){
+    var stats={A:{count:0,pct:0,people:[]},B:{count:0,pct:0,people:[]},C:{count:0,pct:0,people:[]},D:{count:0,pct:0,people:[]},total:0};
+    if(!allAns)return stats;
+    Object.keys(allAns).forEach(function(key){
+        var item=allAns[key];
+        var ans=item.answers_json;
+        if(!ans||!ans[ci]||!ans[ci][qi])return;
+        var chosen=ans[ci][qi];
+        if(stats[chosen]){stats[chosen].count++;stats[chosen].people.push({name:item.participant_name||'Anônimo',key:key})}
+        stats.total++;
+    });
+    ['A','B','C','D'].forEach(function(l){stats[l].pct=stats.total?Math.round((stats[l].count/stats.total)*100):0});
+    return stats;
+}
+
+function renderStatBars(stats,myChoice){
+    var h='<div style="background:var(--bg);border-radius:8px;padding:12px 16px;border:1px solid var(--bdr-l)">';
+    h+='<p class="text-xs font-bold mb-3" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Distribuição das respostas'+(stats.total?' ('+stats.total+' pessoa'+(stats.total>1?'s':'')+')':'')+'</p>';
+    ['A','B','C','D'].forEach(function(l){
+        var s=stats[l];
+        var isMe=myChoice===l?' <span style="font-weight:700;font-size:11px;opacity:.7">← você</span>':'';
+        h+='<div class="flex items-center gap-3 mb-2">';
+        h+='<span class="text-xs font-bold" style="width:16px;color:'+optColor(l)+'">'+l+'</span>';
+        h+='<div style="flex:1;background:var(--bg2);border-radius:6px;overflow:hidden;height:28px;position:relative">';
+        if(s.pct>0)h+='<div class="'+optBarCls(l)+'" style="width:'+s.pct+'%;height:100%;display:flex;align-items:center;padding:0 10px;font-size:12px;font-weight:600;color:#fff">'+s.pct+'%</div>';
+        if(s.pct===0)h+='<span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted)">0%</span>';
+        h+='</div>';
+        h+='<span class="text-xs" style="width:40px;text-align:right;color:var(--muted)">'+s.count+isMe+'</span>';
+        h+='</div>';
+    });
+    h+='</div>';
+    return h;
+}
+
+/* ====== SORTEIO DE DEFENSORES ====== */
+function pickRandom(arr){if(!arr||!arr.length)return null;return arr[Math.floor(Math.random()*arr.length)]}
+
+async function selectDefenders(ci,qi){
+    var allAns=await dbLoadAllAnswers();
+    var stats=computeQStats(ci,qi,allAns);
+    var qKey=ci+'_'+qi;
+    var result={selectedAt:new Date().toISOString()};
+    var hasAny=false;
+    ['A','B','C','D'].forEach(function(l){
+        if(stats[l].people.length>0){
+            var picked=pickRandom(stats[l].people);
+            result[l]={name:picked.name,key:picked.key};
+            hasAny=true;
+        }else{
+            result[l]=null;
+        }
+    });
+    if(!hasAny){toast('Nenhuma resposta para esta questão ainda','warn');return null}
+    await dbSaveDefenders(qKey,result);
+    return result;
+}
+
+/* ====== PONTUAÇÃO ====== */
+function scoreParticipant(ans){
+    var correct=0,total=0;
+    getConfiguredCases().forEach(function(ci){
+        cases[ci].qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            total++;
+            var chosen=(ans&&ans[ci]&&ans[ci][qi])||'';
+            if(chosen===q.options[q.correct].label)correct++;
+        });
+    });
+    return{correct:correct,total:total,pct:total?Math.round((correct/total)*100):0};
+}
+
+/* ====== POLLING (TEMPO REAL) ====== */
+function startPoll(){stopPoll();pollAnswers();pollTimer=setInterval(pollAnswers,4000)}
+function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
+async function pollAnswers(){
+    try{
+        var d=await dbLoadAllAnswers();
+        var changed=JSON.stringify(d)!==JSON.stringify(cachedAllAns);
+        cachedAllAns=d;
+        if(changed)updateLiveStats(d);
+    }catch(e){}
+}
+function updateLiveStats(allAns){
+    if(!allAns)return;
+    /* Atualiza barras de estatística nas questões já respondidas pelo participante */
+    getConfiguredCases().forEach(function(ci){
+        cases[ci].qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            if(!pAns[ci]||!pAns[ci][qi])return;
+            var el=$('qs_'+ci+'_'+qi);
+            if(!el)return;
+            var stats=computeQStats(ci,qi,allAns);
+            el.innerHTML=renderStatBars(stats,pAns[ci][qi]);
+        });
+    });
+}
+
+/* ====== SALVAR RESPOSTAS (DEBOUNCED) ====== */
+function debouncedSave(){if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(async function(){if(!await dbSaveAnswers(pName,pAns))console.warn('Erro ao salvar')},800)}
+
+/* ====== NAVEGAÇÃO ====== */
+function goHome(){stopPoll();show('sLanding')}
+function goName(){$('pNameIn').value='';show('sName');setTimeout(function(){$('pNameIn').focus()},300)}
+async function enterDash(){
+    var n=$('pNameIn').value.trim();
+    if(!n){toast('Informe seu nome','warn');$('pNameIn').focus();return}
+    pName=n;
+    var remote=await dbLoadAnswers(pName);
+    pAns=(remote&&typeof remote==='object')?remote:{};
+    renDash();show('sDash');startPoll();
+}
+function goDash(){renDash();show('sDash');startPoll()}
+
+/* ====== SENHA ====== */
 function openPass(){$('modalPass').style.display='flex';$('passIn').value='';setTimeout(function(){$('passIn').focus()},150)}
 function closePass(){$('modalPass').style.display='none'}
 function chkPass(){
-    if($('passIn').value===PASS){closePass();aTab=0;renATabs();renABody();renAdminSummary();show('sAdmin');loadAdminParticipants();toast('Bem-vindo ao painel administrativo','ok')}
-    else{toast('Senha incorreta','err');$('passIn').value='';$('passIn').focus();$('passIn').style.borderColor='var(--err)';setTimeout(function(){$('passIn').style.borderColor=''},1500)}
+    if($('passIn').value===PASS){closePass();aTab=0;renATabs();renABody();loadAdminData();show('sAdmin');toast('Bem-vindo ao painel','ok')}
+    else{toast('Senha incorreta','err');$('passIn').value='';$('passIn').focus()}
 }
 
-function getConfiguredCaseIndexes(){
-    var out=[];
-    for(var i=0;i<cases.length;i++)if(cases[i]&&cases[i].title&&cases[i].title.trim())out.push(i);
-    return out;
-}
-
-function scoreQuestion(q,ans){
-    var text=(ans||'').trim().toLowerCase();
-    var kws=pKW(q&&q.kw?q.kw:'');
-    var found=0;
-    var kwa=kws.map(function(k){
-        var ok=text.indexOf(k)!==-1;
-        if(ok)found++;
-        return{w:k,f:ok};
-    });
-    var pct=kws.length>0?Math.round((found/kws.length)*100):(text?50:0);
-    return{pct:pct,found:found,total:kws.length,kwa:kwa};
-}
-
-function calcParticipantMetrics(ansObj){
-    var totalScore=0,totalCount=0,totalFound=0,totalKw=0;
-    var byCase={};
-    var caseIdx=getConfiguredCaseIndexes();
-    caseIdx.forEach(function(ci){
-        var c=cases[ci];
-        var caseScore=0,caseCount=0,caseFound=0,caseKw=0;
-        c.qs.forEach(function(q,qi){
-            if(!q.text||!q.text.trim())return;
-            var ans=(ansObj&&ansObj[ci]&&typeof ansObj[ci][qi]==='string')?ansObj[ci][qi]:'';
-            var sc=scoreQuestion(q,ans);
-            caseScore+=sc.pct;
-            caseCount++;
-            caseFound+=sc.found;
-            caseKw+=sc.total;
-        });
-        byCase[ci]={
-            pct:caseCount?Math.round(caseScore/caseCount):0,
-            found:caseFound,
-            totalKw:caseKw,
-            qCount:caseCount
-        };
-        totalScore+=caseScore;
-        totalCount+=caseCount;
-        totalFound+=caseFound;
-        totalKw+=caseKw;
-    });
-    return{
-        overallPct:totalCount?Math.round(totalScore/totalCount):0,
-        found:totalFound,
-        totalKw:totalKw,
-        byCase:byCase
-    };
-}
-
-function pctTone(pct){
-    if(pct>=75)return'var(--ok)';
-    if(pct>=45)return'var(--warn)';
-    return'var(--err)';
-}
-
-function closeParticipantModal(){
-    var el=$('modalPResp');
-    if(el)el.style.display='none';
-}
-
-function adminViewParticipant(key){
-    var p=adminByKey[key];
-    if(!p){toast('Participante nao encontrado','err');return}
-    $('pRespTitle').textContent='Respostas de '+(p.name||'Participante');
-
-    var totalQ=getTotalQuestions();
-    var tone=pctTone(p.scorePct);
-    var h='';
-    h+='<div class="flex flex-wrap gap-2 mb-4">';
-    h+='<span class="badge" style="background:var(--pri-l);color:var(--pri)">'+p.answered+'/'+totalQ+' respostas</span>';
-    h+='<span class="badge" style="background:'+tone+'18;color:'+tone+'">Assertividade '+p.scorePct+'%</span>';
-    if(p.metrics&&p.metrics.totalKw>0)h+='<span class="badge" style="background:var(--bg2);color:var(--txt2)">'+p.metrics.found+'/'+p.metrics.totalKw+' palavras-chave encontradas</span>';
-    h+='</div>';
-
-    var caseIdx=getConfiguredCaseIndexes();
-    if(!caseIdx.length){
-        h+='<div class="p-4 rounded-lg text-sm" style="background:var(--bg);border:1px solid var(--bdr-l);color:var(--muted)">Nenhum caso configurado para comparar respostas.</div>';
-        $('pRespBody').innerHTML=h;
-        $('modalPResp').style.display='flex';
-        return;
-    }
-
-    caseIdx.forEach(function(ci){
-        var c=cases[ci];
-        var m=(p.byCase&&p.byCase[ci])?p.byCase[ci]:{pct:0,found:0,totalKw:0,qCount:0};
-        var caseTone=pctTone(m.pct);
-        h+='<div class="card mb-4">';
-        h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-3">';
-        h+='<div><p class="text-xs font-bold tracking-wide" style="color:var(--pri)">CASO '+(ci+1)+'</p><p class="font-semibold text-sm">'+esc(c.title||('Caso '+(ci+1)))+'</p></div>';
-        h+='<div class="text-xs"><span class="badge" style="background:'+caseTone+'18;color:'+caseTone+'">'+m.pct+'%</span></div>';
-        h+='</div>';
-
-        var hasAny=false;
-        c.qs.forEach(function(q,qi){
-            if(!q.text||!q.text.trim())return;
-            hasAny=true;
-            var ans=(p.answers&&p.answers[ci]&&typeof p.answers[ci][qi]==='string')?p.answers[ci][qi]:'';
-            var sc=scoreQuestion(q,ans);
-            var qTone=pctTone(sc.pct);
-            h+='<div class="p-3 rounded-lg mb-3" style="background:var(--bg);border:1px solid var(--bdr-l)">';
-            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2"><p class="text-sm font-semibold">Pergunta '+(qi+1)+'</p><span class="badge" style="background:'+qTone+'18;color:'+qTone+'">'+sc.pct+'%</span></div>';
-            h+='<p class="text-sm mb-3" style="color:var(--txt2)">'+esc(q.text)+'</p>';
-            h+='<div class="resp-grid">';
-            h+='<div><p class="label mb-2">Resposta do Participante</p><div class="p-3 rounded-lg text-sm" style="background:#fff;border:1px solid var(--bdr-l);white-space:pre-line">'+(ans.trim()?esc(ans):'<span style="color:var(--muted);font-style:italic">Sem resposta</span>')+'</div></div>';
-            h+='<div><p class="label mb-2">Resposta de Referencia</p><div class="p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line">'+esc(q.ref||'')+'</div></div>';
-            h+='</div>';
-            if(sc.total>0){
-                h+='<div class="mt-2 text-xs" style="color:var(--muted)">Palavras-chave: '+sc.found+'/'+sc.total+'</div>';
-                h+='<div class="mt-2 flex flex-wrap gap-1">';
-                sc.kwa.forEach(function(k){h+='<span class="kw-tag '+(k.f?'kw-found':'kw-miss')+'">'+(k.f?'\u2713 ':'\u2717 ')+esc(k.w)+'</span>'});
-                h+='</div>';
-            }
-            h+='</div>';
-        });
-        if(!hasAny)h+='<p class="text-sm" style="color:var(--muted)">Sem perguntas ativas neste caso.</p>';
-        h+='</div>';
-    });
-
-    $('pRespBody').innerHTML=h;
-    $('modalPResp').style.display='flex';
-}
-
-function renAdminSummary(){
-    var totalQ=getTotalQuestions();
-    var totalP=adminParticipants.length;
-    var totalA=0;
-    adminParticipants.forEach(function(p){totalA+=p.answered});
-    var avgAcc=totalP?Math.round(adminParticipants.reduce(function(sum,p){return sum+(p.scorePct||0)},0)/totalP):0;
-    var caseIdx=getConfiguredCaseIndexes();
-    var h='';
-    h+='<div class="flex flex-wrap items-center justify-between gap-3 mb-4">';
-    h+='<div><h3 class="text-lg font-bold">Resumo de Participantes</h3><p class="text-xs" style="color:var(--muted)">Visualize respostas, compare assertividade e remova usuarios para reutilizar o sistema.</p></div>';
-    h+='<div class="flex gap-2">';
-    h+='<span class="badge" style="background:var(--pri-l);color:var(--pri)">'+totalP+' participante(s)</span>';
-    h+='<span class="badge" style="background:var(--acc-l);color:var(--acc)">'+totalA+' resposta(s)</span>';
-    h+='<span class="badge" style="background:var(--bg2);color:var(--txt2)">Media assertividade '+avgAcc+'%</span>';
-    h+='</div></div>';
-
-    if(adminLoading){
-        h+='<div class="p-4 rounded-lg text-sm" style="background:var(--bg);border:1px solid var(--bdr-l);color:var(--muted)">Carregando participantes...</div>';
-        $('aSummary').innerHTML=h;
-        return;
-    }
-
-    if(!totalP){
-        h+='<div class="p-6 rounded-lg text-sm" style="background:var(--bg);border:1px solid var(--bdr-l);color:var(--muted)">Nenhum participante com respostas salvas no banco.</div>';
-        $('aSummary').innerHTML=h;
-        return;
-    }
-
-    h+='<div class="space-y-3">';
-    adminParticipants.forEach(function(p){
-        var pct=totalQ>0?Math.round((p.answered/totalQ)*100):0;
-        if(pct>100)pct=100;
-        var tone=pctTone(p.scorePct||0);
-        h+='<div class="p-4 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)">';
-        h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2">';
-        h+='<div><p class="font-semibold text-sm">'+esc(p.name)+'</p><p class="text-xs" style="color:var(--muted)">Atualizado em '+esc(fmtDate(p.updatedAt))+'</p></div>';
-        h+='<div class="flex gap-2">';
-        h+='<button type="button" onclick="adminViewParticipant(\''+esc(p.key)+'\')" class="btn-s text-xs py-1 px-2">Ver Respostas</button>';
-        h+='<button type="button" onclick="adminDeleteParticipant(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">Apagar Usuario</button>';
-        h+='</div>';
-        h+='</div>';
-        h+='<div class="flex items-center justify-between text-xs mb-2"><span style="color:var(--muted)">'+p.answered+'/'+totalQ+' respostas</span><span style="color:'+tone+'">Assertividade '+(p.scorePct||0)+'%</span></div>';
-        h+='<div class="pbar"><div class="pfill" style="width:'+pct+'%"></div></div>';
-        h+='</div>';
-    });
-    h+='</div>';
-
-    if(caseIdx.length){
-        h+='<div class="mt-6">';
-        h+='<h4 class="text-sm font-bold mb-2">Matriz de Assertividade por Participante</h4>';
-        h+='<div class="text-xs mb-3" style="color:var(--muted)">Percentual por participante (geral e por caso), calculado por palavras-chave das perguntas.</div>';
-        h+='<div style="overflow:auto;border:1px solid var(--bdr-l);border-radius:8px;background:#fff">';
-        h+='<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:760px">';
-        h+='<thead><tr style="background:var(--bg)"><th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Participante</th><th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Geral</th>';
-        caseIdx.forEach(function(ci){h+='<th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Caso '+(ci+1)+'</th>'});
-        h+='</tr></thead><tbody>';
-        adminParticipants.forEach(function(p){
-            var t0=pctTone(p.scorePct||0);
-            h+='<tr>';
-            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l)"><button type="button" onclick="adminViewParticipant(\''+esc(p.key)+'\')" style="color:var(--pri);font-weight:600;text-decoration:underline;background:none;border:none;cursor:pointer">'+esc(p.name)+'</button></td>';
-            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l)"><span class="badge" style="background:'+t0+'18;color:'+t0+'">'+(p.scorePct||0)+'%</span></td>';
-            caseIdx.forEach(function(ci){
-                var cm=(p.byCase&&p.byCase[ci])?p.byCase[ci]:{pct:0};
-                var tc=pctTone(cm.pct||0);
-                h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l)"><span class="badge" style="background:'+tc+'18;color:'+tc+'">'+(cm.pct||0)+'%</span></td>';
-            });
-            h+='</tr>';
-        });
-        h+='</tbody></table></div></div>';
-    }
-
-    $('aSummary').innerHTML=h;
-}
-
-async function loadAdminParticipants(){
-    adminLoading=true;
-    renAdminSummary();
-    var data=await dbLoadAllAnswers();
-    var list=[];
-    Object.keys(data||{}).forEach(function(key){
-        var item=data[key]||{};
-        var ans=(item.answers_json&&typeof item.answers_json==='object')?item.answers_json:{};
-        var metrics=calcParticipantMetrics(ans);
-        list.push({
-            key:key,
-            name:item.participant_name||'Sem nome',
-            answered:getAnsweredCount(ans),
-            updatedAt:item.updated_at||'',
-            answers:ans,
-            scorePct:metrics.overallPct,
-            byCase:metrics.byCase,
-            metrics:metrics
-        });
-    });
-    list.sort(function(a,b){
-        var da=new Date(a.updatedAt||0).getTime()||0;
-        var db=new Date(b.updatedAt||0).getTime()||0;
-        return db-da;
-    });
-    adminParticipants=list;
-    adminByKey={};
-    adminParticipants.forEach(function(p){adminByKey[p.key]=p});
-    adminLoading=false;
-    renAdminSummary();
-}
-
-async function adminDeleteParticipant(key){
-    var p=adminByKey[key];
-    var name=p&&p.name?p.name:'este participante';
-    if(!confirm('Apagar respostas de '+name+'?'))return;
-    if(!await dbDeleteAnswersByKey(key)){
-        toast('Erro ao apagar usuário no banco','err');
-        return;
-    }
-    toast('Usuário removido com sucesso','ok');
-    await loadAdminParticipants();
-}
-
-/* Dados */
-function mkQ(){return{text:'',ref:'',kw:'',expl:''}}
-function mkC(){return{title:'',img:'',desc:'',qs:[mkQ()]}}
-async function initCases(){
-    try {
-        var remote=await dbLoadCases();
-        if(Array.isArray(remote)){cases=remote;normalizeCases();return}
-        cases=[];
-        normalizeCases();
-    } catch(e) {
-        console.error("Erro ao inicializar casos:", e);
-        cases=[];for(var i=0;i<5;i++)cases.push(mkC());
-    }
-}
-async function loadAns(){
-    try {
-        var remote=await dbLoadAnswers(pName);
-        if(remote&&typeof remote==='object'){
-            pAns=remote;
-            return;
-        }
-        pAns={};
-    } catch(e) {
-        pAns={};
-    }
-}
-async function saveAns(){
-    if(!await dbSaveAnswers(pName,pAns))console.warn('Erro ao salvar respostas na nuvem');
-}
-
-/* Nav */
-function goHome(){show('sLanding')}
-function goName(){$('pNameIn').value='';show('sName');setTimeout(function(){$('pNameIn').focus()},300)}
-async function enterDash(){var n=$('pNameIn').value.trim();if(!n){toast('Informe seu nome','warn');$('pNameIn').focus();return}pName=n;await loadAns();renDash();show('sDash')}
-function goDash(){renDash();show('sDash')}
-
-/* Admin: abas */
-function addCase(){
-    if(cases.length>=MAX_CASES){toast('Máximo de '+MAX_CASES+' casos atingido','warn');return}
-    cases.push(mkC());
-    aTab=cases.length-1;
-    renATabs();
-    renABody();
-    renAdminSummary();
-    toast('Caso adicionado com sucesso','ok');
-}
+/* ====== ADMIN: ABAS ====== */
+function addCase(){if(cases.length>=MAX_CASES){toast('Máximo de '+MAX_CASES+' casos','warn');return}cases.push(mkC());aTab=cases.length-1;renATabs();renABody();toast('Caso adicionado','ok')}
 function renATabs(){
-    if(aTab>=cases.length)aTab=Math.max(0,cases.length-1);
+    if(aTab>cases.length)aTab=cases.length;
     var h='';
-    for(var i=0;i<cases.length;i++){var c=cases[i];var ok=c.title&&c.desc&&c.qs.some(function(q){return q.text&&q.ref});h+='<button type="button" class="tab '+(i===aTab?'on':'')+'" onclick="swTab('+i+')">'+(ok?'\u25CF ':'\u25CB ')+'Caso '+(i+1)+'</button>'}
-    if(cases.length<MAX_CASES)h+='<button type="button" onclick="addCase()" class="btn-s text-xs py-2 px-3">+ Adicionar caso</button>';
+    for(var i=0;i<cases.length;i++){
+        var c=cases[i];var ok=c.title&&c.qs.some(function(q){return q.text&&q.options.some(function(o){return o.text.trim()})});
+        h+='<button type="button" class="tab '+(i===aTab?'on':'')+'" onclick="swTab('+i+')">'+(ok?'● ':'○ ')+'Caso '+(i+1)+'</button>';
+    }
+    h+='<button type="button" class="tab '+(aTab===cases.length?'on':'')+'" onclick="swTab('+cases.length+')" style="color:var(--acc)">Estatísticas</button>';
+    if(cases.length<MAX_CASES)h+='<button type="button" onclick="addCase()" class="btn-s text-xs py-2 px-3">+ Caso</button>';
     $('aTabs').innerHTML=h;
 }
 function swTab(i){aTab=i;renATabs();renABody()}
 
-/* Admin: conteúdo */
+/* ====== ADMIN: CONTEÚDO ====== */
 function renABody(){
+    if(aTab===cases.length){renStatsView();return}
     if(aTab>=cases.length)aTab=Math.max(0,cases.length-1);
     var c=cases[aTab],i=aTab,h='<div class="space-y-6">';
-    h+='<div><label class="label">Título do Caso Clínico</label><input class="inp text-base font-semibold" value="'+esc(c.title)+'" oninput="cases['+i+'].title=this.value" placeholder="Ex: Fratura exposta de tíbia direita — Gustilo IIIA em paciente diabético"></div>';
-    h+='<div><label class="label">Imagem Clínica / Radiológica</label><div class="drop" onclick="$(\'fi_'+i+'\').click()" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');hDrop('+i+',event)"><input type="file" id="fi_'+i+'" accept="image/*" style="display:none" onchange="hFile('+i+',this.files[0])">';
-    if(c.img)h+='<img src="'+c.img+'" alt="Imagem do caso"><p class="mt-2 text-xs" style="color:var(--muted)">Clique para trocar</p>';
-    else h+='<p class="font-medium text-sm mb-1" style="color:var(--muted)">Arraste uma imagem ou clique para selecionar</p><p class="text-xs" style="color:var(--muted)">JPG, PNG — redimensionada automaticamente</p>';
-    h+='</div>';if(c.img)h+='<button type="button" onclick="cases['+i+'].img=\'\';renABody();renATabs()" class="btn-d mt-2 text-xs">Remover imagem</button>';h+='</div>';
-    h+='<div><label class="label">Descrição Clínica Completa</label><textarea class="inp" rows="5" oninput="cases['+i+'].desc=this.value" placeholder="Descreva detalhadamente: dados do paciente, mecanismo de trauma, histórico, exame físico, achados de imagem, classificação, exames laboratoriais...">'+esc(c.desc)+'</textarea></div>';
-    h+='<div><div class="flex items-center justify-between mb-4"><label class="label" style="margin:0">Perguntas Descritivas ('+c.qs.length+'/'+MAX_Q+')</label>';
-    if(c.qs.length<MAX_Q)h+='<button type="button" onclick="addQ('+i+')" class="btn-s text-xs py-1 px-3">+ Adicionar</button>';
+    /* Título */
+    h+='<div><label class="label">Título do Caso Clínico</label><input class="inp text-base font-semibold" value="'+esc(c.title)+'" oninput="cases['+i+'].title=this.value" placeholder="Ex: Fratura exposta de tíbia direita"></div>';
+    /* Imagem */
+    h+='<div><label class="label">Imagem Clínica</label><div class="drop" onclick="$(\'fi_'+i+'\').click()" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');hDrop('+i+',event)"><input type="file" id="fi_'+i+'" accept="image/*" style="display:none" onchange="hFile('+i+',this.files[0])">';
+    if(c.img)h+='<img src="'+c.img+'" alt="Imagem"><p class="mt-2 text-xs" style="color:var(--muted)">Clique para trocar</p>';
+    else h+='<p class="font-medium text-sm mb-1" style="color:var(--muted)">Arraste ou clique para imagem</p>';
+    h+='</div>';if(c.img)h+='<button type="button" onclick="cases['+i+'].img=\'\';renABody()" class="btn-d mt-2 text-xs">Remover imagem</button>';h+='</div>';
+    /* Descrição */
+    h+='<div><label class="label">Descrição Clínica</label><textarea class="inp" rows="4" oninput="cases['+i+'].desc=this.value" placeholder="Dados do paciente, mecanismo, exame físico, achados...">'+esc(c.desc)+'</textarea></div>';
+    /* Perguntas */
+    h+='<div><div class="flex items-center justify-between mb-4"><label class="label" style="margin:0">Perguntas ('+c.qs.length+'/'+MAX_Q+')</label>';
+    if(c.qs.length<MAX_Q)h+='<button type="button" onclick="addQ('+i+')" class="btn-s text-xs py-1 px-3">+ Pergunta</button>';
     h+='</div><div class="space-y-6">';
     for(var qi=0;qi<c.qs.length;qi++){
         var q=c.qs[qi];
-        h+='<div class="p-5 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex items-center justify-between mb-3"><span class="text-xs font-bold tracking-wide" style="color:var(--pri)">PERGUNTA '+(qi+1)+'</span>';
+        h+='<div class="p-5 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+        h+='<div class="flex items-center justify-between mb-3"><span class="text-xs font-bold tracking-wide" style="color:var(--pri)">PERGUNTA '+(qi+1)+'</span>';
         if(c.qs.length>1)h+='<button type="button" onclick="rmQ('+i+','+qi+')" class="btn-d text-xs py-1 px-2">Remover</button>';
         h+='</div>';
-        h+='<div class="mb-4"><label class="label">Enunciado</label><textarea class="inp" rows="3" oninput="cases['+i+'].qs['+qi+'].text=this.value" placeholder="Descreva a pergunta. Ex: Descreva o procedimento cirúrgico mais indicado para este caso...">'+esc(q.text)+'</textarea></div>';
-        h+='<div class="mb-4"><label class="label">Resposta Descritiva de Referência</label><textarea class="inp" rows="5" oninput="cases['+i+'].qs['+qi+'].ref=this.value" placeholder="Descreva a resposta completa esperada do participante...">'+esc(q.ref)+'</textarea></div>';
-        h+='<div class="mb-4"><label class="label">Palavras-chave esperadas (separadas por vírgula)</label><input class="inp" value="'+esc(q.kw)+'" oninput="cases['+i+'].qs['+qi+'].kw=this.value" placeholder="Ex: fixação intramedular, bloqueada, tíbia, Gustilo IIIA"><p class="text-xs mt-1" style="color:var(--muted)">Usadas para pontuar automaticamente a resposta do participante</p></div>';
-        h+='<div><label class="label">Explicação Complementar</label><textarea class="inp" rows="3" oninput="cases['+i+'].qs['+qi+'].expl=this.value" placeholder="Informações adicionais, referências, detalhes técnicos...">'+esc(q.expl)+'</textarea></div></div>';
+        h+='<div class="mb-4"><label class="label">Enunciado</label><textarea class="inp" rows="2" oninput="cases['+i+'].qs['+qi+'].text=this.value" placeholder="Descreva a pergunta...">'+esc(q.text)+'</textarea></div>';
+        /* Alternativas */
+        h+='<div class="mb-4"><label class="label">Alternativas</label><div class="space-y-3">';
+        for(var oi=0;oi<4;oi++){
+            var o=q.options[oi];
+            var isCorr=q.correct===oi;
+            h+='<div class="flex items-center gap-3">';
+            h+='<div class="flex items-center gap-2" style="min-width:100px"><input type="radio" name="corr_'+i+'_'+qi+'" '+(isCorr?'checked':'')+' onchange="cases['+i+'].qs['+qi+'].correct='+oi+'" style="accent-color:var(--pri);cursor:pointer"><span class="text-sm font-bold" style="color:'+optColor(o.label)+'">'+o.label+')</span></div>';
+            h+='<input class="inp" value="'+esc(o.text)+'" oninput="cases['+i+'].qs['+qi+'].options['+oi+'].text=this.value" placeholder="Texto da alternativa '+o.label+'...">';
+            h+='</div>';
+        }
+        h+='</div><p class="text-xs mt-1" style="color:var(--muted)">Selecione o rádio ao lado da alternativa correta</p></div>';
+        /* Explicação */
+        h+='<div><label class="label">Explicação Complementar</label><textarea class="inp" rows="2" oninput="cases['+i+'].qs['+qi+'].expl=this.value" placeholder="Por que esta é a resposta correta...">'+esc(q.expl)+'</textarea></div>';
+        h+='</div>';
     }
-    h+='</div></div></div>';$('aBody').innerHTML=h;
+    h+='</div></div></div>';
+    $('aBody').innerHTML=h;
 }
 
-/* Imagem */
+/* ====== ADMIN: VISÃO DE ESTATÍSTICAS ====== */
+async function renStatsView(){
+    var allAns=await dbLoadAllAnswers();
+    var allDefs=await dbLoadAllDefenders();
+    var caseIdx=getConfiguredCases();
+    var totalP=Object.keys(allAns).length;
+    var totalResp=0,correctTotal=0,questTotal=0;
+    caseIdx.forEach(function(ci){
+        cases[ci].qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            questTotal++;
+            var st=computeQStats(ci,qi,allAns);
+            totalResp+=st.total;
+            var corrLabel=q.options[q.correct].label;
+            correctTotal+=st[corrLabel].count;
+        });
+    });
+    var avgPct=questTotal?Math.round((correctTotal/(questTotal*Math.max(1,totalP)))*100):0;
+
+    var h='<div class="space-y-6">';
+    /* Cards resumo */
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">';
+    h+='<div class="card" style="text-align:center;padding:16px"><p class="text-2xl font-bold" style="color:var(--pri);font-family:Playfair Display,serif">'+totalP+'</p><p class="text-xs" style="color:var(--muted)">Participantes</p></div>';
+    h+='<div class="card" style="text-align:center;padding:16px"><p class="text-2xl font-bold" style="color:var(--acc);font-family:Playfair Display,serif">'+totalResp+'</p><p class="text-xs" style="color:var(--muted)">Respostas</p></div>';
+    h+='<div class="card" style="text-align:center;padding:16px"><p class="text-2xl font-bold" style="color:var(--ok);font-family:Playfair Display,serif">'+avgPct+'%</p><p class="text-xs" style="color:var(--muted)">Taxa de Acerto</p></div>';
+    h+='<div class="card" style="text-align:center;padding:16px"><p class="text-2xl font-bold" style="color:var(--oc);font-family:Playfair Display,serif">'+caseIdx.length+'</p><p class="text-xs" style="color:var(--muted)">Casos Ativos</p></div>';
+    h+='</div>';
+
+    if(!caseIdx.length){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum caso configurado.</div>';$('aBody').innerHTML=h;return}
+    if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante respondeu ainda.</div>';$('aBody').innerHTML=h;return}
+
+    /* Por caso e questão */
+    caseIdx.forEach(function(ci){
+        var c=cases[ci];
+        h+='<div class="card" style="padding:20px"><h4 class="text-lg font-bold mb-1" style="color:var(--pri)">Caso '+(ci+1)+'</h4><p class="text-sm mb-5" style="color:var(--txt2)">'+esc(c.title)+'</p>';
+        var hasQ=false;
+        c.qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            hasQ=true;
+            var stats=computeQStats(ci,qi,allAns);
+            var corrLabel=q.options[q.correct].label;
+            var qKey=ci+'_'+qi;
+            var def=allDefs[qKey]||null;
+
+            h+='<div class="p-4 rounded-lg mb-4" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-3">';
+            h+='<p class="text-sm font-semibold">Pergunta '+(qi+1)+': '+esc(q.text)+'</p>';
+            h+='<span class="badge" style="background:var(--ok-l);color:var(--ok)">Correta: '+corrLabel+'</span>';
+            h+='</div>';
+            /* Barras */
+            h+=renderStatBars(stats,null);
+            /* Detalhamento por pessoa */
+            h+='<details class="mt-3"><summary class="text-xs cursor-pointer font-semibold" style="color:var(--pri)">Ver quem escolheu o quê</summary><div class="mt-2 space-y-1">';
+            ['A','B','C','D'].forEach(function(l){
+                if(!stats[l].people.length)return;
+                var isCorr=l===corrLabel;
+                h+='<div class="flex items-center gap-2 text-xs py-1"><span class="font-bold" style="color:'+optColor(l)+';width:16px">'+l+')</span><span class="text-xs" style="color:var(--muted)">'+stats[l].people.map(function(p){return esc(p.name)+(isCorr?' ✓':'')}).join(', ')+'</span></div>';
+            });
+            h+='</div></details>';
+            /* Explicação */
+            if(q.expl&&q.expl.trim())h+='<div class="mt-3 p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15)">'+esc(q.expl)+'</div>';
+            /* Sortear defensores */
+            h+='<div class="mt-4 flex flex-wrap items-center gap-3">';
+            h+='<button type="button" onclick="doSelectDefenders('+ci+','+qi+',this)" class="btn-p text-xs py-2 px-4">Sortear Defensores</button>';
+            if(def&&def.selectedAt)h+='<span class="text-xs" style="color:var(--muted)">Sorteado em '+fmtDate(def.selectedAt)+'</span>';
+            h+='</div>';
+            /* Defensores sorteados */
+            h+='<div id="def_'+qKey+'" class="mt-3">';
+            if(def&&def.selectedAt){
+                h+='<p class="text-xs font-bold mb-2" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Defensores Sorteados</p>';
+                h+='<div class="flex flex-wrap gap-3">';
+                ['A','B','C','D'].forEach(function(l){
+                    var d=def[l];
+                    h+='<div class="def-card" style="background:'+optColorL(l)+';border:2px solid '+optColor(l)+';animation-delay:'+([0,100,200,300][['A','B','C','D'].indexOf(l)])+'ms">';
+                    h+='<p class="text-lg font-bold" style="color:'+optColor(l)+'">'+l+'</p>';
+                    h+='<p class="text-sm font-semibold mt-1">'+(d?esc(d.name):'<span style="color:var(--muted);font-size:11px">Sem resposta</span>')+'</p>';
+                    h+='</div>';
+                });
+                h+='</div>';
+            }
+            h+='</div>';
+            h+='</div>';
+        });
+        if(!hasQ)h+='<p class="text-sm" style="color:var(--muted)">Sem perguntas ativas.</p>';
+        h+='</div>';
+    });
+
+    /* Lista de participantes */
+    h+='<div class="card" style="padding:20px"><h4 class="text-lg font-bold mb-4">Todos os Participantes</h4>';
+    var partList=[];
+    Object.keys(allAns).forEach(function(key){
+        var item=allAns[key];
+        var sc=scoreParticipant(item.answers_json);
+        partList.push({key:key,name:item.participant_name||'Anônimo',score:sc,updatedAt:item.updated_at||'',answers:item.answers_json});
+    });
+    partList.sort(function(a,b){return(b.score.pct-a.score.pct)||(new Date(b.updatedAt||0)-new Date(a.updatedAt||0))});
+    if(!partList.length){h+='<p class="text-sm" style="color:var(--muted)">Nenhum participante.</p>'}
+    else{
+        h+='<div style="overflow:auto;border:1px solid var(--bdr-l);border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:500px">';
+        h+='<thead><tr style="background:var(--bg)"><th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Participante</th><th style="text-align:center;padding:10px;border-bottom:1px solid var(--bdr-l)">Acertos</th><th style="text-align:center;padding:10px;border-bottom:1px solid var(--bdr-l)">%</th><th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Atualizado</th><th style="text-align:center;padding:10px;border-bottom:1px solid var(--bdr-l)">Ações</th></tr></thead><tbody>';
+        partList.forEach(function(p){
+            var t=p.score.pct>=70?'var(--ok)':p.score.pct>=40?'var(--warn)':'var(--err)';
+            h+='<tr><td style="padding:10px;border-bottom:1px solid var(--bdr-l);font-weight:600">'+esc(p.name)+'</td>';
+            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l);text-align:center">'+p.score.correct+'/'+p.score.total+'</td>';
+            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l);text-align:center"><span class="badge" style="background:'+t+'18;color:'+t+'">'+p.score.pct+'%</span></td>';
+            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l);color:var(--muted);font-size:12px">'+fmtDate(p.updatedAt)+'</td>';
+            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l);text-align:center"><button type="button" onclick="viewPart(\''+esc(p.key)+'\')" class="btn-s text-xs py-1 px-2">Ver</button> <button type="button" onclick="delPart(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">Apagar</button></td>';
+            h+='</tr>';
+        });
+        h+='</tbody></table></div>';
+    }
+    h+='</div>';
+
+    /* Botão limpar defensores */
+    h+='<div class="text-center"><button type="button" onclick="clearAllDef()" class="btn-d text-xs">Limpar Todos os Sorteios de Defensores</button></div>';
+    h+='</div>';
+    $('aBody').innerHTML=h;
+}
+
+async function doSelectDefenders(ci,qi,btn){
+    btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Sorteando...';
+    var result=await selectDefenders(ci,qi);
+    if(result){
+        toast('Defensores sorteados com sucesso','ok');
+        renStatsView();
+    }
+    btn.disabled=false;btn.textContent='Sortear Defensores';
+}
+
+async function clearAllDef(){
+    if(!confirm('Limpar todos os sorteios de defensores?'))return;
+    await dbClearAllDefenders();toast('Sorteios limpos','info');renStatsView();
+}
+
+/* ====== ADMIN: VER PARTICIPANTE ====== */
+function viewPart(key){
+    var p=adminByKey[key];if(!p){toast('Não encontrado','err');return}
+    $('pRespTitle').textContent='Respostas de '+p.name;
+    var sc=scoreParticipant(p.answers);
+    var h='<div class="flex flex-wrap gap-2 mb-4">';
+    h+='<span class="badge" style="background:var(--pri-l);color:var(--pri)">'+sc.correct+'/'+sc.total+' acertos</span>';
+    h+='<span class="badge" style="background:'+(sc.pct>=70?'var(--ok-l)':sc.pct>=40?'var(--warn-l)':'var(--err-l)')+';color:'+(sc.pct>=70?'var(--ok)':sc.pct>=40?'var(--warn)':'var(--err)')+'">'+sc.pct+'%</span>';
+    h+='</div>';
+    getConfiguredCases().forEach(function(ci){
+        var c=cases[ci];
+        h+='<div class="card mb-4" style="padding:16px"><p class="text-xs font-bold tracking-wide mb-1" style="color:var(--pri)">CASO '+(ci+1)+'</p><p class="font-semibold text-sm mb-3">'+esc(c.title)+'</p>';
+        c.qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            var chosen=(p.answers&&p.answers[ci]&&p.answers[ci][qi])||'—';
+            var isCorr=chosen===q.options[q.correct].label;
+            h+='<div class="p-3 rounded-lg mb-3" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+            h+='<p class="text-sm font-semibold mb-2">P.'+(qi+1)+': '+esc(q.text)+'</p>';
+            h+='<p class="text-sm">Resposta: <span class="font-bold" style="color:'+optColor(chosen)+'">'+chosen+')</span> '+(isCorr?'<span class="correct-mark">CORRETA</span>':'<span class="wrong-mark">INCORRETA</span>')+' — '+esc(q.options[['A','B','C','D'].indexOf(chosen)]?q.options[['A','B','C','D'].indexOf(chosen)].text:'?')+'</p>';
+            h+='<p class="text-xs mt-1" style="color:var(--ok)">Correta: '+q.options[q.correct].label+') '+esc(q.options[q.correct].text)+'</p>';
+            if(q.expl)h+='<p class="text-xs mt-2" style="color:var(--muted)">'+esc(q.expl)+'</p>';
+            h+='</div>';
+        });
+        h+='</div>';
+    });
+    $('pRespBody').innerHTML=h;$('modalPResp').style.display='flex';
+}
+function closePResp(){$('modalPResp').style.display='none'}
+
+async function delPart(key){
+    var p=adminByKey[key];var name=p?p.name:'este participante';
+    if(!confirm('Apagar respostas de '+name+'?'))return;
+    if(await dbDeleteByKey(key)){toast('Removido','ok');loadAdminData()}else toast('Erro ao apagar','err');
+}
+
+/* ====== ADMIN: RESUMO ====== */
+async function loadAdminData(){
+    var allAns=await dbLoadAllAnswers();
+    var list=[];var byK={};
+    Object.keys(allAns).forEach(function(key){
+        var item=allAns[key];var ans=item.answers_json||{};
+        var sc=scoreParticipant(ans);
+        var p={key:key,name:item.participant_name||'Anônimo',score:sc,updatedAt:item.updated_at||'',answers:ans};
+        list.push(p);byK[key]=p;
+    });
+    list.sort(function(a,b){return new Date(b.updatedAt||0)-new Date(a.updatedAt||0)});
+    adminParticipants=list;adminByKey=byK;
+    renAdminSummary();if(aTab===cases.length)renStatsView();
+}
+
+function renAdminSummary(){
+    var totalQ=getTotalQuestions();var totalP=adminParticipants.length;var totalA=0,avgC=0;
+    adminParticipants.forEach(function(p){totalA+=p.score.correct;avgC+=p.score.pct});
+    avgC=totalP?Math.round(avgC/totalP):0;
+    var h='<div class="flex flex-wrap items-center justify-between gap-3 mb-4"><div><h3 class="text-lg font-bold">Resumo</h3><p class="text-xs" style="color:var(--muted)">Participantes, respostas e desempenho geral</p></div>';
+    h+='<div class="flex gap-2"><span class="badge" style="background:var(--pri-l);color:var(--pri)">'+totalP+' participante(s)</span><span class="badge" style="background:var(--acc-l);color:var(--acc)">'+avgC+'% acerto médio</span></div></div>';
+    if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante ainda.</div>';$('aSummary').innerHTML=h;return}
+    h+='<div class="space-y-2">';
+    adminParticipants.forEach(function(p){
+        var pct=totalQ>0?Math.round((p.score.correct/totalQ)*100):0;
+        var t=p.score.pct>=70?'var(--ok)':p.score.pct>=40?'var(--warn)':'var(--err)';
+        h+='<div class="p-3 rounded-lg flex flex-wrap items-center justify-between gap-2" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+        h+='<div><p class="font-semibold text-sm">'+esc(p.name)+'</p><p class="text-xs" style="color:var(--muted)">'+fmtDate(p.updatedAt)+'</p></div>';
+        h+='<div class="flex items-center gap-3"><span class="text-xs" style="color:'+t+';font-weight:600">'+p.score.pct+'%</span><div class="pbar" style="width:100px"><div class="pfill" style="width:'+pct+'%"></div></div>';
+        h+='<button type="button" onclick="viewPart(\''+esc(p.key)+'\')" class="btn-s text-xs py-1 px-2">Ver</button>';
+        h+='<button type="button" onclick="delPart(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">X</button></div>';
+        h+='</div>';
+    });
+    h+='</div>';
+    $('aSummary').innerHTML=h;
+}
+
+/* ====== IMAGEM ====== */
 function hFile(ci,file){
-    if(!file||!file.type.startsWith('image/')){if(file)toast('Selecione uma imagem válida','err');return}
+    if(!file||!file.type.startsWith('image/')){if(file)toast('Imagem inválida','err');return}
     var r=new FileReader();
-    r.onload=function(e){var img=new Image();img.onload=function(){var cv=document.createElement('canvas');var w=img.width,h=img.height;if(w>800){h=(800/w)*h;w=800}cv.width=Math.max(1,w);cv.height=Math.max(1,h);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);try{cases[ci].img=cv.toDataURL('image/jpeg',0.8);renABody();renATabs()}catch(err){toast('Erro ao processar imagem','err')}};img.onerror=function(){toast('Erro ao carregar imagem','err')};img.src=e.target.result};
-    r.onerror=function(){toast('Erro ao ler arquivo','err')};r.readAsDataURL(file);
+    r.onload=function(e){var img=new Image();img.onload=function(){var cv=document.createElement('canvas');var w=img.width,h=img.height;if(w>800){h=(800/w)*h;w=800}cv.width=Math.max(1,w);cv.height=Math.max(1,h);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);try{cases[ci].img=cv.toDataURL('image/jpeg',0.8);renABody()}catch(er){toast('Erro ao processar','err')}};img.src=e.target.result};r.readAsDataURL(file);
 }
-function hDrop(ci,e){var f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))hFile(ci,f);else toast('Selecione uma imagem válida','err')}
+function hDrop(ci,e){var f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))hFile(ci,f);else toast('Imagem inválida','err')}
 
-/* Perguntas */
+/* ====== PERGUNTAS ADMIN ====== */
 function addQ(ci){if(cases[ci].qs.length>=MAX_Q)return;cases[ci].qs.push(mkQ());renABody()}
 function rmQ(ci,qi){if(cases[ci].qs.length<=1)return;cases[ci].qs.splice(qi,1);renABody()}
 
-/* Salvar */
+/* ====== SALVAR / LIMPAR ====== */
 async function saveAll(){
     var hasAny=false,errors=[];
-    for(var i=0;i<cases.length;i++){var c=cases[i];if(!c.title.trim()&&!c.desc.trim()&&!c.img&&!c.qs.some(function(q){return q.text.trim()}))continue;hasAny=true;
-        if(!c.title.trim())errors.push('Caso '+(i+1)+': sem título');if(!c.desc.trim())errors.push('Caso '+(i+1)+': sem descrição');
-        for(var qi=0;qi<c.qs.length;qi++){var q=c.qs[qi];if(q.text.trim()){if(!q.ref.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem resposta de referência');if(!q.kw.trim())errors.push('Caso '+(i+1)+', Q'+(qi+1)+': sem palavras-chave')}}}
+    cases.forEach(function(c,i){
+        if(!c.title.trim()&&!c.qs.some(function(q){return q.text.trim()}))return;
+        hasAny=true;
+        if(!c.title.trim())errors.push('Caso '+(i+1)+': sem título');
+        if(!c.desc.trim())errors.push('Caso '+(i+1)+': sem descrição');
+        c.qs.forEach(function(q,qi){
+            if(!q.text.trim())return;
+            var hasOpt=q.options.some(function(o){return o.text.trim()});
+            if(!hasOpt)errors.push('Caso '+(i+1)+' Q'+(qi+1)+': sem alternativas');
+            var filledOpts=q.options.filter(function(o){return o.text.trim()}).length;
+            if(filledOpts<2)errors.push('Caso '+(i+1)+' Q'+(qi+1)+': mínimo 2 alternativas');
+        });
+    });
     if(!hasAny){toast('Preencha pelo menos um caso','warn');return}
     if(errors.length){toast('Corrija: '+errors[0],'err');return}
-    if(!await dbSaveCases(cases)){toast('Erro ao salvar na nuvem: '+(lastDbError||'verifique conexao e permissoes.'),'err');return}
-    renATabs();
-    renAdminSummary();
-    toast('Casos salvos com sucesso','ok');
+    if(!await dbSaveCases(cases)){toast('Erro ao salvar: '+(lastDbError||'verifique conexão'),'err');return}
+    renATabs();toast('Casos salvos com sucesso','ok');
 }
 async function resetAll(){
     if(!confirm('Limpar todos os casos?'))return;
     cases=[];for(var i=0;i<5;i++)cases.push(mkC());
-    if(!await dbSaveCases(cases)){toast('Erro ao limpar casos na nuvem: '+(lastDbError||'falha de gravacao.'),'err');return}
-    renATabs();renABody();renAdminSummary();toast('Casos removidos','info');
+    await dbSaveCases(cases);renATabs();renABody();toast('Casos limpos','info');
 }
 
-/* Dashboard */
+/* ====== DASHBOARD PARTICIPANTE ====== */
 function renDash(){
     $('dTitle').textContent=pName;
-    var avail=cases.filter(function(c){return c.title.trim()});
-    var ansCnt=0,total=0;
-    avail.forEach(function(c){c.qs.forEach(function(q){if(q.text.trim())total++})});
-    cases.forEach(function(c,ci){if(!c.title.trim())return;c.qs.forEach(function(q,qi){if(q.text.trim()&&pAns[ci]&&pAns[ci][qi]&&pAns[ci][qi].trim())ansCnt++})});
+    var avail=getConfiguredCases();var total=0,ansCnt=0;
+    avail.forEach(function(ci){cases[ci].qs.forEach(function(q){if(q.text.trim())total++})});
+    avail.forEach(function(ci){cases[ci].qs.forEach(function(q,qi){if(q.text.trim()&&pAns[ci]&&pAns[ci][qi])ansCnt++})});
     $('dSub').textContent=avail.length+' caso(s) — '+ansCnt+'/'+total+' respondidas';
-    if(!avail.length){$('dBody').innerHTML='<div class="card text-center py-16"><h3 class="text-xl font-bold mb-2">Nenhum caso disponível</h3><p class="text-sm" style="color:var(--muted)">Aguarde o administrador configurar os casos.</p></div>';return}
+    if(!avail.length){$('dBody').innerHTML='<div class="card text-center py-16"><h3 class="text-xl font-bold mb-2">Nenhum caso disponível</h3><p class="text-sm" style="color:var(--muted)">Aguarde o administrador configurar.</p></div>';return}
     var h='<div class="case-grid">';
-    for(var idx=0;idx<cases.length;idx++){var c=cases[idx];if(!c.title.trim())continue;
-        var qC=0;c.qs.forEach(function(q){if(q.text.trim())qC++});
-        var aC=0;if(pAns[idx])c.qs.forEach(function(q,qi){if(q.text.trim()&&pAns[idx][qi]&&pAns[idx][qi].trim())aC++});
-        var st='pend',sT='Não iniciado',sC='var(--muted)';if(aC>0&&aC<qC){st='prog';sT='Em andamento';sC='var(--warn)'}else if(aC>=qC&&qC>0){st='done';sT='Concluído';sC='var(--ok)'}
+    avail.forEach(function(ci,idx){
+        var c=cases[ci];var qC=0,aC=0;
+        c.qs.forEach(function(q){if(q.text.trim())qC++});
+        c.qs.forEach(function(q,qi){if(q.text.trim()&&pAns[ci]&&pAns[ci][qi])aC++});
+        var st='pend',sT='Não iniciado',sC='var(--muted)';
+        if(aC>0&&aC<qC){st='prog';sT='Em andamento';sC='var(--warn)'}
+        else if(aC>=qC&&qC>0){st='done';sT='Concluído';sC='var(--ok)'}
         var pct=qC>0?Math.round((aC/qC)*100):0;
-        h+='<div class="card cursor-pointer" onclick="openC('+idx+')" style="animation:su .4s ease;animation-delay:'+(idx*70)+'ms;animation-fill-mode:both"><div class="flex items-center justify-between mb-3"><span class="badge" style="background:var(--pri-l);color:var(--pri)">CASO '+(idx+1)+'</span><div class="flex items-center gap-2"><span class="dot '+st+'"></span><span class="text-xs" style="color:'+sC+'">'+sT+'</span></div></div>';
+        h+='<div class="card cursor-pointer" onclick="openC('+ci+')" style="animation:su .4s ease both;animation-delay:'+(idx*70)+'ms">';
+        h+='<div class="flex items-center justify-between mb-3"><span class="badge" style="background:var(--pri-l);color:var(--pri)">CASO '+(ci+1)+'</span><div class="flex items-center gap-2"><span class="dot '+st+'"></span><span class="text-xs" style="color:'+sC+'">'+sT+'</span></div></div>';
         h+='<h3 class="font-bold text-sm mb-2 leading-snug" style="font-family:Playfair Display,serif">'+esc(c.title)+'</h3>';
         if(c.img)h+='<img src="'+c.img+'" class="w-full h-28 object-cover rounded-lg mb-3" alt="">';
-        var ds=esc(c.desc);if(ds.length>120)ds=ds.substring(0,120)+'...';
-        h+='<p class="text-xs mb-3 leading-relaxed" style="color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+ds+'</p>';
         h+='<div class="flex items-center justify-between text-xs mb-2"><span style="color:var(--muted)">'+aC+'/'+qC+' perguntas</span><span style="color:'+sC+'">'+pct+'%</span></div>';
-        h+='<div class="pbar"><div class="pfill" style="width:'+pct+'%"></div></div></div>'}
-    h+='</div>';$('dBody').innerHTML=h;
+        h+='<div class="pbar"><div class="pfill" style="width:'+pct+'%"></div></div>';
+        h+='</div>';
+    });
+    h+='</div>';
+    $('dBody').innerHTML=h;
 }
 
-/* Visualização do caso — CORRIGIDA: agora chama show('sCase') no final */
+/* ====== ABRIR CASO (PARTICIPANTE) ====== */
 function openC(ci){
-    vCase=ci;
-    var c=cases[ci];
-    var vq=[];
-    c.qs.forEach(function(q,i){
-        if(q.text.trim()) vq.push({text:q.text, ref:q.ref, kw:q.kw, expl:q.expl, _i:i});
-    });
+    vCase=ci;renCase(ci);show('sCase');
     $('cLabel').textContent='CASO '+(ci+1);
-
-    var h='<div class="space-y-6" style="animation:su .35s ease">';
-
-    /* Cabeçalho do caso */
-    h+='<div class="card">';
-    h+='<h2 class="text-2xl font-bold mb-1 leading-snug">'+esc(c.title)+'</h2>';
-    h+='<span class="badge mb-4 inline-block" style="background:var(--pri-l);color:var(--pri)">CASO CLÍNICO '+(ci+1)+'</span>';
-    if(c.img) h+='<img src="'+c.img+'" class="w-full max-h-96 object-contain rounded-lg mb-4 mt-4" style="background:var(--bg)" alt="Imagem do caso">';
-    h+='<div class="text-sm leading-relaxed mt-4" style="color:var(--txt2);white-space:pre-line">'+esc(c.desc)+'</div>';
-    h+='</div>';
-
-    /* Perguntas */
-    h+='<div>';
-    h+='<h3 class="text-lg font-bold mb-4">Perguntas Descritivas ('+vq.length+')</h3>';
-    h+='<div class="space-y-5">';
-
-    for(var vi=0;vi<vq.length;vi++){
-        var q=vq[vi];
-        var val=(pAns[ci]&&pAns[ci][q._i])||'';
-        var has=val.trim().length>0;
-
-        h+='<div class="card">';
-        h+='<div class="flex items-start gap-3 mb-3">';
-        h+='<span class="num-c">'+(q._i+1)+'</span>';
-        h+='<p class="font-semibold text-sm leading-snug pt-1">'+esc(q.text)+'</p>';
-        h+='</div>';
-
-        h+='<textarea class="inp" rows="7" id="ta_'+ci+'_'+q._i+'" oninput="onAns('+ci+','+q._i+',this)" placeholder="Descreva detalhadamente sua resposta. Inclua justificativas, técnica cirúrgica, materiais, cuidados...">'+esc(val)+'</textarea>';
-
-        h+='<div class="flex justify-between items-center mt-2" id="qs_'+ci+'_'+q._i+'">';
-        h+='<span class="text-xs" style="color:var(--muted)">'+val.length+' caracteres</span>';
-        if(has){
-            h+='<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>';
-        } else {
-            h+='<span class="text-xs" style="color:var(--muted)">Pendente</span>';
-        }
-        h+='</div>';
-        h+='<button type="button" id="refToggle_'+ci+'_'+q._i+'" onclick="toggleAnswer('+ci+','+q._i+')" class="btn-s text-xs py-1 px-3 mt-3 w-full">Mostrar resposta de referência</button>';
-        h+='<div id="ref_'+ci+'_'+q._i+'" class="hidden mt-3 p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line">'+esc(q.ref)+'</div>';
-        h+='</div>';
-    }
-
-    h+='</div></div>';
-
-    /* Botões de navegação */
-    h+='<div class="flex flex-wrap justify-between gap-3 pt-4">';
-    h+='<button type="button" onclick="goDash()" class="btn-s">\u2190 Voltar</button>';
-    h+='<div class="flex flex-wrap gap-2"><button type="button" onclick="showAllAnswers()" class="btn-s text-xs">Ver respostas de referência</button><button type="button" onclick="goDash()" class="btn-p">Salvar e Voltar</button></div>';
-    h+='</div>';
-
-    h+='</div>';
-
-    $('cBody').innerHTML=h;
-    show('sCase');
 }
 
-/* Salvar resposta sem perder foco */
-var _debTimer=null;
-function onAns(ci,qi,el){
-    if(!pAns[ci])pAns[ci]={};
-    pAns[ci][qi]=el.value;
-    var st=$('qs_'+ci+'_'+qi);
-    if(st){
-        var has=el.value.trim().length>0;
-        st.innerHTML='<span class="text-xs" style="color:var(--muted)">'+el.value.length+' caracteres</span>'+(has?'<span class="text-xs font-semibold" style="color:var(--ok)">Respondida</span>':'<span class="text-xs" style="color:var(--muted)">Pendente</span>');
-    }
-    clearTimeout(_debTimer);
-    _debTimer=setTimeout(function(){saveAns()},400);
-}
-
-function toggleAnswer(ci,qi){
-    var answer=$('ref_'+ci+'_'+qi);
-    var button=$('refToggle_'+ci+'_'+qi);
-    if(!answer||!button)return;
-    var isHidden=answer.classList.contains('hidden');
-    answer.classList.toggle('hidden',!isHidden);
-    button.textContent=isHidden?'Ocultar resposta de referência':'Mostrar resposta de referência';
-}
-
-/* Submissão */
-function submitAns(){
-    var avail=cases.filter(function(c){return c.title.trim()});
-    if(!avail.length){toast('Nenhum caso disponível','warn');return}
-    var miss=[];
-    avail.forEach(function(c){
-        var ci=cases.indexOf(c);
-        c.qs.forEach(function(q,qi){
-            if(q.text.trim()&&(!pAns[ci]||!pAns[ci][qi]||!pAns[ci][qi].trim())) miss.push('Caso '+(ci+1)+', Q'+(qi+1));
-        });
-    });
-    if(miss.length){toast('Faltam '+miss.length+' resposta(s): '+miss[0],'warn');return}
-    renRes();show('sRes');
-}
-
-/* Resultados */
-function renRes(){
-    var avail=cases.filter(function(c){return c.title.trim()});
-    var totKW=0,fndKW=0,cRes=[];
-    avail.forEach(function(c){
-        var ci=cases.indexOf(c);
-        var vq=[];
-        c.qs.forEach(function(q,i){if(q.text.trim())vq.push({text:q.text,ref:q.ref,kw:q.kw,expl:q.expl,_i:i})});
-        var qr=vq.map(function(q){
-            var ans=(pAns[ci]&&pAns[ci][q._i])||'';
-            var kws=pKW(q.kw);
-            var kwa=kws.map(function(k){return{w:k,f:ans.toLowerCase().indexOf(k)!==-1}});
-            var fc=0;kwa.forEach(function(k){if(k.f)fc++});
-            totKW+=kws.length;fndKW+=fc;
-            var pct=kws.length>0?Math.round((fc/kws.length)*100):(ans.trim().length>0?50:0);
-            return{text:q.text,ans:ans,ref:q.ref,expl:q.expl,kwa:kwa,fc:fc,tot:kwa.length,pct:pct};
-        });
-        var ckt=0,ckf=0;qr.forEach(function(q){ckt+=q.tot;ckf+=q.fc});
-        var cp=ckt>0?Math.round((ckf/ckt)*100):0;
-        cRes.push({co:c,ci:ci,qr:qr,kf:ckf,kt:ckt,pct:cp});
-    });
-    var pG=totKW>0?Math.round((fndKW/totKW)*100):0;
-    var deg=Math.round((pG/100)*360);
-    var niv,nC,nT;
-    if(pG>=85){niv='Excelente';nC='var(--ok)';nT='Demonstrou conhecimento cirúrgico avançado, com descrições precisas e abrangentes que contemplam os principais aspectos de cada caso.'}
-    else if(pG>=65){niv='Muito Bom';nC='var(--pri)';nT='Possui boa base teórica com descrições adequadas, porém com algumas lacunas em pontos específicos que podem ser aprofundados.'}
-    else if(pG>=45){niv='Regular';nC='var(--warn)';nT='As respostas apresentam conceitos corretos mas carecem de profundidade técnica. Recomenda-se revisar protocolos de indicação cirúrgica.'}
-    else{niv='Necessita Melhoria';nC='var(--err)';nT='As respostas não contemplaram os pontos-chave esperados. Revisar fundamentos dos procedimentos e estudar os casos apresentados.'}
-
-    var h='<div class="text-center mb-12" style="animation:su .4s ease">';
-    h+='<p class="text-sm mb-5" style="color:var(--muted)">Resultado de <strong style="color:var(--txt)">'+esc(pName)+'</strong></p>';
-    h+='<div class="score-c mx-auto mb-5" style="--deg:'+deg+'deg"><span class="text-5xl font-bold" style="color:'+nC+'">'+pG+'%</span><span class="text-xs font-medium" style="color:var(--muted)">'+fndKW+'/'+totKW+' palavras-chave</span></div>';
-    h+='<div class="badge mb-3" style="background:'+nC+'15;color:'+nC+';border:1px solid '+nC+'30;font-size:13px;padding:5px 16px">'+niv+'</div>';
-    h+='<p class="text-sm max-w-xl mx-auto leading-relaxed" style="color:var(--muted)">'+nT+'</p>';
-    h+='</div><div class="divider mb-8"></div>';
-
-    h+='<div class="mb-8"><h3 class="text-lg font-bold mb-5">Desempenho por Caso</h3><div class="result-grid">';
-    cRes.forEach(function(cr,idx){
-        var cC=cr.pct>=75?'var(--ok)':cr.pct>=45?'var(--warn)':'var(--err)';
-        var cL=cr.pct>=75?'Bom':cr.pct>=45?'Regular':'Fraco';
-        var ts=esc(cr.co.title);if(ts.length>50)ts=ts.substring(0,50)+'...';
-        h+='<div class="card text-center" style="animation:su .4s ease;animation-delay:'+(idx*80)+'ms;animation-fill-mode:both">';
-        h+='<p class="text-xs font-bold tracking-widest mb-1" style="color:var(--pri)">CASO '+(cr.ci+1)+'</p>';
-        h+='<p class="font-bold text-sm mb-3 leading-snug" style="font-family:Playfair Display,serif">'+ts+'</p>';
-        h+='<div class="text-3xl font-bold mb-1" style="color:'+cC+';font-family:Playfair Display,serif">'+cr.pct+'%</div>';
-        h+='<p class="text-xs mb-3" style="color:var(--muted)">'+cr.kf+'/'+cr.kt+' palavras-chave</p>';
-        h+='<span class="badge" style="background:'+cC+'15;color:'+cC+';border:1px solid '+cC+'25">'+cL+'</span>';
-        h+='</div>';
-    });
-    h+='</div></div><div class="divider mb-8"></div>';
-
-    h+='<div><h3 class="text-lg font-bold mb-5">Análise Detalhada por Pergunta</h3><div class="space-y-3">';
-    cRes.forEach(function(cr){
-        cr.qr.forEach(function(q,qi){
-            var iC=q.pct>=70?'var(--ok)':'var(--err)';
-            var iT=q.pct>=70?q.pct+'% — Bom':q.pct+'% — Insuficiente';
-            var ts=esc(q.text);if(ts.length>85)ts=ts.substring(0,85)+'...';
-            h+='<div class="q-card"><div class="q-head" onclick="tgQ(this)"><div class="flex items-center gap-3"><span class="circle-ind" style="background:'+iC+'"></span><div><span class="text-xs font-bold tracking-wide" style="color:var(--pri)">CASO '+(cr.ci+1)+' — PERGUNTA '+(qi+1)+'</span><p class="text-sm font-medium mt-0.5 leading-snug">'+ts+'</p></div></div>';
-            h+='<div class="flex items-center gap-3"><span class="badge hidden md:inline-block" style="background:'+iC+'12;color:'+iC+';border:1px solid '+iC+'25">'+iT+'</span><span style="color:var(--muted);transition:transform .3s;display:inline-block" class="chev">\u25BC</span></div></div>';
-            h+='<div class="q-body"><p class="text-sm font-semibold mb-4 leading-relaxed">'+esc(q.text)+'</p>';
-            h+='<div class="mb-5"><p class="label mb-2">Palavras-chave</p><div class="flex flex-wrap gap-1">';
-            q.kwa.forEach(function(k){h+='<span class="kw-tag '+(k.f?'kw-found':'kw-miss')+'">'+(k.f?'\u2713 ':'\u2717 ')+esc(k.w)+'</span>'});
-            h+='</div><p class="text-xs mt-2" style="color:var(--muted)">'+q.fc+' de '+q.tot+' encontradas ('+q.pct+'%)</p></div>';
-            h+='<div class="resp-grid mb-5"><div><p class="label mb-2">Sua Resposta</p><div class="p-3 rounded-lg text-sm leading-relaxed" style="background:var(--bg);border:1px solid var(--bdr-l);white-space:pre-line;max-height:280px;overflow-y:auto">'+(q.ans.trim()?esc(q.ans):'<span style="color:var(--muted);font-style:italic">Sem resposta</span>')+'</div></div>';
-            h+='<div><p class="label mb-2">Resposta de Referência</p><div class="p-3 rounded-lg text-sm leading-relaxed" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line;max-height:280px;overflow-y:auto">'+esc(q.ref)+'</div></div></div>';
-            if(q.expl) h+='<div class="p-4 rounded-lg" style="background:var(--pri-l);border:1px solid rgba(0,137,123,.15)"><p class="label mb-1">Explicação Complementar</p><p class="text-sm leading-relaxed" style="color:var(--txt2);white-space:pre-line">'+esc(q.expl)+'</p></div>';
-            h+='</div></div>';
-        });
-    });
-    h+='</div></div><div class="divider my-10"></div>';
-    h+='<div class="text-center mb-10"><button type="button" onclick="goDash()" class="btn-s mr-3">\u2190 Voltar ao Dashboard</button><button type="button" onclick="retryEval()" class="btn-d">Refazer Avaliação</button></div>';
-    $('rBody').innerHTML=h;
-}
-
-function tgQ(el){var b=el.nextElementSibling;var c=el.querySelector('.chev');b.classList.toggle('open');c.style.transform=b.classList.contains('open')?'rotate(180deg)':''}
-function pKW(s){if(!s)return[];return s.split(',').map(function(k){return k.trim().toLowerCase()}).filter(function(k){return k.length>1})}
-async function retryEval(){
-    if(!confirm('Refazer avaliação? Todas as respostas serão apagadas.'))return;
-    pAns={};
-    await dbDeleteAnswers(pName);
-    goDash();
-    toast('Respostas apagadas','info');
-}
-
-function showAllAnswers(){
-    var avail=cases.filter(function(c){return c.title.trim()});
+function renCase(ci){
+    var c=cases[ci];
     var h='<div class="space-y-6">';
-    var count=0;
-    avail.forEach(function(c){
-        var ci=cases.indexOf(c);
-        c.qs.forEach(function(q,qi){
-            if(q.text.trim() && q.ref.trim()){
-                count++;
-                h+='<div class="card">';
-                h+='<div class="flex items-center gap-2 mb-2"><span class="badge" style="background:var(--pri-l);color:var(--pri)">CASO '+(ci+1)+', Q'+(qi+1)+'</span><p class="text-sm font-semibold">'+esc(q.text)+'</p></div>';
-                h+='<div class="p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15);white-space:pre-line">'+esc(q.ref)+'</div>';
-                if(q.expl) h+='<div class="mt-2 p-2 rounded text-xs" style="background:var(--pri-l);border:1px solid rgba(0,137,123,.15)"><p class="font-semibold mb-1">Explicação Complementar:</p><p style="color:var(--txt2)">'+esc(q.expl)+'</p></div>';
-                h+='</div>';
-            }
-        });
-    });
-    if(!count)h+='<p class="text-sm" style="color:var(--muted)">Nenhuma resposta de referência disponível.</p>';
+    /* Info do caso */
+    h+='<div class="card">';
+    h+='<h2 class="text-xl font-bold mb-2" style="color:var(--pri)">Caso '+(ci+1)+'</h2>';
+    h+='<h3 class="text-lg font-bold mb-4">'+esc(c.title)+'</h3>';
+    if(c.img)h+='<img src="'+c.img+'" class="w-full max-h-80 object-contain rounded-lg mb-4" alt="">';
+    if(c.desc)h+='<p class="text-sm leading-relaxed" style="color:var(--txt2);white-space:pre-line">'+esc(c.desc)+'</p>';
     h+='</div>';
-    var modalBody=$('allAnswersBody');
-    if(modalBody){
-        modalBody.innerHTML=h;
-        var modal=$('allAnswersModal');
-        if(modal){
-            modal.style.display='flex';
+    /* Questões */
+    c.qs.forEach(function(q,qi){
+        if(!q.text||!q.text.trim())return;
+        var myChoice=(pAns[ci]&&pAns[ci][qi])||'';
+        h+='<div class="card" style="padding:20px">';
+        h+='<p class="text-xs font-bold tracking-wide mb-2" style="color:var(--pri)">PERGUNTA '+(qi+1)+'</p>';
+        h+='<p class="text-base font-semibold mb-4 leading-snug">'+esc(q.text)+'</p>';
+        /* Opções */
+        ['A','B','C','D'].forEach(function(l){
+            var oi=['A','B','C','D'].indexOf(l);
+            var oTxt=q.options[oi]?q.options[oi].text:'';
+            if(!oTxt.trim())return;
+            var sel=myChoice===l;
+            h+='<div class="opt-card '+(sel?optCls(l):'')+'" onclick="pickOpt('+ci+','+qi+',\''+l+'\')">';
+            h+='<div class="opt-radio"></div>';
+            h+='<div><span class="text-sm font-bold" style="color:'+optColor(l)+'">'+l+') </span><span class="text-sm">'+esc(oTxt)+'</span></div>';
+            h+='</div>';
+        });
+        /* Estatísticas (aparece após responder) */
+        if(myChoice){
+            h+='<div class="mt-4" id="qs_'+ci+'_'+qi+'">';
+            if(cachedAllAns){var stats=computeQStats(ci,qi,cachedAllAns);h+=renderStatBars(stats,myChoice)}
+            else{h+='<div class="p-3 text-center text-xs" style="color:var(--muted)"><span class="spinner"></span> Carregando estatísticas...</div>'}
+            h+='</div>';
         }
-    }
+        h+='</div>';
+    });
+    h+='<div class="text-center"><button type="button" onclick="goDash()" class="btn-s">← Voltar aos Casos</button></div>';
+    h+='</div>';
+    $('cBody').innerHTML=h;
 }
 
-function closeAllAnswers(){
-    var modal=$('allAnswersModal');
-    if(modal)modal.style.display='none';
+function pickOpt(ci,qi,label){
+    if(!pAns[ci])pAns[ci]={};
+    pAns[ci][qi]=label;
+    debouncedSave();
+    renCase(ci);
 }
 
-async function boot(){
-    try {
-        await initDb();
-        await initCases();
-    } catch(e) {
-        console.error("Falha crítica na inicialização:", e);
-    }
+/* ====== SUBMETER RESPOSTAS ====== */
+async function submitAns(){
+    var total=getTotalQuestions();var ansCnt=getAnsweredCount(pAns);
+    if(ansCnt<total){toast('Responda todas as '+total+' questões primeiro ('+ansCnt+'/'+total+')','warn');return}
+    stopPoll();
+    await dbSaveAnswers(pName,pAns);
+    showResults();
 }
-boot();
+
+/* ====== RESULTADOS ====== */
+async function showResults(){
+    var allAns=await dbLoadAllAnswers();
+    var allDefs=await dbLoadAllDefenders();
+    var sc=scoreParticipant(pAns);
+    var t=sc.pct>=70?'var(--ok)':sc.pct>=40?'var(--warn)':'var(--err)';
+    var h='<div class="space-y-6">';
+    /* Score geral */
+    h+='<div class="card text-center" style="padding:32px">';
+    h+='<p class="text-sm mb-2" style="color:var(--muted)">Seu resultado</p>';
+    h+='<p class="text-5xl font-bold mb-1" style="color:'+t+';font-family:Playfair Display,serif">'+sc.pct+'%</p>';
+    h+='<p class="text-lg" style="color:var(--txt2)">'+sc.correct+' de '+sc.total+' corretas</p>';
+    h+='</div>';
+    /* Detalhamento por questão */
+    getConfiguredCases().forEach(function(ci){
+        var c=cases[ci];
+        h+='<div class="card" style="padding:20px"><h4 class="text-base font-bold mb-3" style="color:var(--pri)">Caso '+(ci+1)+': '+esc(c.title)+'</h4>';
+        c.qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            var myChoice=(pAns[ci]&&pAns[ci][qi])||'—';
+            var corrLabel=q.options[q.correct].label;
+            var isCorr=myChoice===corrLabel;
+            var stats=computeQStats(ci,qi,allAns);
+            var qKey=ci+'_'+qi;
+            var def=allDefs[qKey]||null;
+            var iAmDefender=def&&def[myChoice]&&def[myChoice].key===btoa(unescape(encodeURIComponent(pName.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+            h+='<div class="p-4 rounded-lg mb-3" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2">';
+            h+='<p class="text-sm font-semibold">P.'+(qi+1)+': '+esc(q.text)+'</p>';
+            h+='<span class="badge" style="background:'+(isCorr?'var(--ok-l)':'var(--err-l)')+';color:'+(isCorr?'var(--ok)':'var(--err)')+'">'+(isCorr?'Correta':'Incorreta')+'</span>';
+            h+='</div>';
+            /* Minha resposta vs correta */
+            h+='<div class="flex flex-wrap gap-3 mb-3 text-sm">';
+            h+='<div class="p-3 rounded-lg flex-1" style="background:'+(isCorr?'var(--ok-l)':'var(--err-l)')+';border:1px solid '+(isCorr?'rgba(46,125,50,.2)':'rgba(198,40,40,.15)')+'"><p class="text-xs font-bold mb-1" style="color:var(--muted)">Sua resposta</p><p class="font-semibold" style="color:'+optColor(myChoice)+'">'+myChoice+') '+esc(q.options[['A','B','C','D'].indexOf(myChoice)]?q.options[['A','B','C','D'].indexOf(myChoice)].text:'')+'</p></div>';
+            if(!isCorr)h+='<div class="p-3 rounded-lg flex-1" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.2)"><p class="text-xs font-bold mb-1" style="color:var(--muted)">Resposta correta</p><p class="font-semibold" style="color:var(--ok)">'+corrLabel+') '+esc(q.options[q.correct].text)+'</p></div>';
+            h+='</div>';
+            /* Estatísticas */
+            h+=renderStatBars(stats,myChoice);
+            /* Se fui sorteado como defensor */
+            if(iAmDefender)h+='<div class="mt-3 p-3 rounded-lg text-center text-sm font-semibold" style="background:var(--acc-l);border:1px solid rgba(230,81,0,.2);color:var(--acc)">Você foi sorteado(a) para defender a alternativa '+myChoice+'!</div>';
+            /* Defensores sorteados */
+            if(def&&def.selectedAt){
+                h+='<div class="mt-3"><p class="text-xs font-bold mb-2" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Defensores Sorteados</p><div class="flex flex-wrap gap-2">';
+                ['A','B','C','D'].forEach(function(l){
+                    var d=def[l];
+                    h+='<div class="def-card" style="background:'+optColorL(l)+';border:1px solid '+optColor(l)+';padding:10px 14px;min-width:80px">';
+                    h+='<p class="text-sm font-bold" style="color:'+optColor(l)+'">'+l+'</p>';
+                    h+='<p class="text-xs font-semibold mt-1">'+(d?esc(d.name):'—')+'</p>';
+                    h+='</div>';
+                });
+                h+='</div></div>';
+            }
+            /* Explicação */
+            if(q.expl&&q.expl.trim())h+='<div class="mt-3 p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15)">'+esc(q.expl)+'</div>';
+            h+='</div>';
+        });
+        h+='</div>';
+    });
+    h+='<div class="text-center"><button type="button" onclick="goDash()" class="btn-p">Voltar ao Início</button></div>';
+    h+='</div>';
+    $('rBody').innerHTML=h;show('sRes');
+}
+
+/* ====== MODAL DEFENSORES (PARTICIPANTE) ====== */
+async function showDefModal(){
+    var allDefs=await dbLoadAllDefenders();
+    var keys=Object.keys(allDefs);
+    if(!keys.length){$('defBody').innerHTML='<p class="text-sm" style="color:var(--muted)">Nenhum sorteio de defensores realizado ainda. O administrador precisa sortear os defensores primeiro.</p>';$('modalDef').style.display='flex';return}
+    var myKey=btoa(unescape(encodeURIComponent(pName.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    var h='<div class="space-y-6">';
+    getConfiguredCases().forEach(function(ci){
+        var c=cases[ci];
+        var hasAny=false;
+        c.qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            var qKey=ci+'_'+qi;
+            var def=allDefs[qKey];if(!def||!def.selectedAt)return;
+            hasAny=true;
+            h+='<div class="p-4 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+            h+='<p class="text-xs font-bold tracking-wide mb-1" style="color:var(--pri)">CASO '+(ci+1)+' — PERGUNTA '+(qi+1)+'</p>';
+            h+='<p class="text-sm font-semibold mb-3">'+esc(q.text)+'</p>';
+            h+='<div class="flex flex-wrap gap-3">';
+            ['A','B','C','D'].forEach(function(l){
+                var d=def[l];
+                var isMe=d&&d.key===myKey;
+                h+='<div class="def-card" style="background:'+optColorL(l)+';border:2px solid '+optColor(l)+(isMe?';box-shadow:0 0 0 3px '+optColor(l):'')+';flex:1;min-width:100px">';
+                h+='<p class="text-lg font-bold" style="color:'+optColor(l)+'">'+l+'</p>';
+                if(d){h+='<p class="text-sm font-semibold mt-1">'+esc(d.name)+'</p>';if(isMe)h+='<p class="text-xs mt-1 font-bold" style="color:var(--acc)">VOCÊ</p>'}
+                else h+='<p class="text-xs mt-1" style="color:var(--muted)">Sem resposta</p>';
+                h+='</div>';
+            });
+            h+='</div>';
+            h+='<p class="text-xs mt-2" style="color:var(--muted)">Sorteado em '+fmtDate(def.selectedAt)+'</p>';
+            h+='</div>';
+        });
+        if(!hasAny)h+='<div class="p-3 rounded-lg text-sm" style="background:var(--bg);border:1px solid var(--bdr-l);color:var(--muted)">Caso '+(ci+1)+': nenhum sorteio realizado.</div>';
+    });
+    h+='</div>';
+    $('defBody').innerHTML=h;$('modalDef').style.display='flex';
+}
+function closeDefModal(){$('modalDef').style.display='none'}
+
+/* ====== INICIALIZAÇÃO ====== */
+async function init(){
+    FB_DB_URL=FB_DB_URL.replace(/\/+$/,'');
+    useRemote=!!FB_DB_URL;
+    var hint=$('storageHint');
+    if(hint)hint.textContent=useRemote?'Dados sincronizados via Firebase. Admin e participantes podem usar dispositivos diferentes.':'Firebase não configurado — defina FB_DB_URL no código.';
+    cases=[];
+    var remote=await dbLoadCases();
+    if(Array.isArray(remote))cases=remote;
+    normalizeCases();
+    show('sLanding');
+}
+init();
 </script>
 </body>
 </html>
