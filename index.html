@@ -176,9 +176,10 @@
 <!-- CASO -->
 <div id="sCase" class="screen">
     <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
-        <div class="max-w-4xl mx-auto flex items-center justify-between">
+        <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
             <button type="button" onclick="goDash()" class="btn-s text-xs py-2 px-3">← Casos</button>
             <span id="cLabel" class="text-xs font-semibold tracking-wide" style="color:var(--pri)"></span>
+            <button type="button" onclick="finishCase(vCase)" class="btn-p text-xs py-2 px-4">Enviar e Voltar</button>
         </div>
     </header>
     <div class="max-w-4xl mx-auto px-4 md:px-6 py-8"><div id="cBody"></div></div>
@@ -204,6 +205,7 @@ var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
 var FB_DB_TOKEN='';
 var useRemote=false;
 var adminParticipants=[],adminByKey={},cachedAllAns=null;
+var statsCaseFilter='all';
 var pollTimer=null,saveTimer=null,lastDbError='';
 
 /* ====== UTILITÁRIOS ====== */
@@ -484,10 +486,20 @@ async function renStatsView(){
     if(!caseIdx.length){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum caso configurado.</div>';$('aBody').innerHTML=h;return}
     if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante respondeu ainda.</div>';$('aBody').innerHTML=h;return}
 
-    /* Por caso e questão */
+    /* Filtro por caso */
+    h+='<div class="flex flex-wrap gap-2">';
+    h+='<button type="button" onclick="setStatsCase(\'all\')" class="tab '+(statsCaseFilter==='all'?'on':'')+'" style="border-radius:8px;border-bottom:1px solid var(--bdr-l)">Todos os Casos</button>';
     caseIdx.forEach(function(ci){
+        h+='<button type="button" onclick="setStatsCase('+ci+')" class="tab '+(statsCaseFilter===ci?'on':'')+'" style="border-radius:8px;border-bottom:1px solid var(--bdr-l)">Caso '+(ci+1)+'</button>';
+    });
+    h+='</div>';
+
+    var visibleCaseIdx=statsCaseFilter==='all'?caseIdx:caseIdx.filter(function(ci){return ci===statsCaseFilter});
+
+    /* Por caso e questão */
+    visibleCaseIdx.forEach(function(ci){
         var c=cases[ci];
-        h+='<div class="card" style="padding:20px"><h4 class="text-lg font-bold mb-1" style="color:var(--pri)">Caso '+(ci+1)+'</h4><p class="text-sm mb-5" style="color:var(--txt2)">'+esc(c.title)+'</p>';
+        h+='<div class="card" style="padding:20px"><div class="flex flex-wrap items-center justify-between gap-2 mb-1"><h4 class="text-lg font-bold" style="color:var(--pri)">Caso '+(ci+1)+'</h4><button type="button" onclick="doSelectDefendersCase('+ci+',this)" class="btn-s text-xs py-2 px-3">Sortear Defensores do Caso</button></div><p class="text-sm mb-5" style="color:var(--txt2)">'+esc(c.title)+'</p>';
         var hasQ=false;
         c.qs.forEach(function(q,qi){
             if(!q.text||!q.text.trim())return;
@@ -577,6 +589,23 @@ async function doSelectDefenders(ci,qi,btn){
         renStatsView();
     }
     btn.disabled=false;btn.textContent='Sortear Defensores';
+}
+
+function setStatsCase(v){statsCaseFilter=v==='all'?'all':Number(v);renStatsView()}
+
+async function doSelectDefendersCase(ci,btn){
+    btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Sorteando...';
+    var allAns=await dbLoadAllAnswers();
+    var qIdx=[];
+    cases[ci].qs.forEach(function(q,qi){if(q.text&&q.text.trim())qIdx.push(qi)});
+    var any=false;
+    for(var k=0;k<qIdx.length;k++){
+        var qi=qIdx[k];
+        var stats=computeQStats(ci,qi,allAns);
+        if(stats.total>0){var r=await selectDefenders(ci,qi);if(r)any=true}
+    }
+    if(any){toast('Defensores sorteados para o caso','ok');renStatsView()}
+    else{toast('Nenhuma resposta neste caso ainda','warn');btn.disabled=false;btn.textContent='Sortear Defensores do Caso'}
 }
 
 async function clearAllDef(){
@@ -765,7 +794,7 @@ function renCase(ci){
         }
         h+='</div>';
     });
-    h+='<div class="text-center"><button type="button" onclick="goDash()" class="btn-s">← Voltar aos Casos</button></div>';
+    h+='<div class="text-center"><button type="button" onclick="finishCase('+ci+')" class="btn-p">Enviar Respostas e Voltar aos Casos</button></div>';
     h+='</div>';
     $('cBody').innerHTML=h;
 }
@@ -775,6 +804,13 @@ function pickOpt(ci,qi,label){
     pAns[ci][qi]=label;
     debouncedSave();
     renCase(ci);
+}
+
+async function finishCase(ci){
+    if(saveTimer){clearTimeout(saveTimer);saveTimer=null}
+    await dbSaveAnswers(pName,pAns);
+    toast('Respostas enviadas','ok');
+    goDash();
 }
 
 /* ====== SUBMETER RESPOSTAS ====== */
