@@ -115,6 +115,11 @@
                     <span class="text-xs font-semibold tracking-wide" style="color:var(--acc)">ACESSAR →</span>
                 </div>
             </div>
+            <div class="card text-center mt-10 py-6 px-6" style="max-width:220px;animation:su .8s ease">
+                <p class="text-xs font-bold mb-3" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Acesso rápido</p>
+                <img id="qrParticipante" src="" alt="QR Code de acesso do participante" width="150" height="150" style="margin:0 auto;border-radius:6px">
+                <p class="text-xs mt-3 leading-relaxed" style="color:var(--muted)">Aponte a câmera para entrar direto como participante</p>
+            </div>
             <p id="storageHint" class="mt-12 text-xs" style="color:var(--muted)">Configure o Firebase para uso multi-dispositivo.</p>
         </div>
     </div>
@@ -920,6 +925,14 @@ async function showDefModal(){
 }
 function closeDefModal(){$('modalDef').style.display='none'}
 
+/* ====== QR CODE PARTICIPANTE ====== */
+function setupQrParticipante(){
+    var img=$('qrParticipante');
+    if(!img)return;
+    var url=location.origin+location.pathname+'?tela=participante';
+    img.src='https://api.qrserver.com/v1/create-qr-code/?size=150x150&data='+encodeURIComponent(url);
+}
+
 /* ====== INICIALIZAÇÃO ====== */
 async function init(){
     FB_DB_URL=FB_DB_URL.replace(/\/+$/,'');
@@ -930,6 +943,8 @@ async function init(){
     var remote=await dbLoadCases();
     if(Array.isArray(remote))cases=remote;
     normalizeCases();
+    setupQrParticipante();
+    if(new URLSearchParams(location.search).get('tela')==='participante'){goName();return}
     show('sLanding');
 }
 init();
