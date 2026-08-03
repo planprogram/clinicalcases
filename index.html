@@ -98,20 +98,20 @@
         <div class="flex-1 flex flex-col items-center justify-center px-4">
             <div class="text-center mb-14" style="animation:su .5s ease">
                 <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">Avaliação de<br><span style="color:var(--pri)">Casos Clínicos</span></h1>
-                <p class="text-sm max-w-md mx-auto leading-relaxed" style="color:var(--muted)">Plataforma de avaliação com múltipla escolha, estatísticas em tempo real e sorteio de defensores</p>
+                <p class="text-sm max-w-md mx-auto leading-relaxed" style="color:var(--muted)">Plataforma de avaliação com múltipla escolha, estatísticas por caso e sorteio de defensores</p>
                 <div class="divider max-w-xs mx-auto mt-8"></div>
             </div>
             <div class="landing-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:520px;width:100%;animation:su .7s ease">
                 <div onclick="openPass()" class="card cursor-pointer text-center py-10 px-6">
                     <div class="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center text-lg font-bold" style="background:var(--pri-l);color:var(--pri);font-family:Playfair Display,serif">A</div>
                     <h3 class="text-xl font-bold mb-2">Administrador</h3>
-                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Criar casos com alternativas, ver estatísticas e sortear defensores</p>
+                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Criar casos com alternativas, ver estatísticas por caso e escolher ou sortear o apresentador</p>
                     <span class="text-xs font-semibold tracking-wide" style="color:var(--pri)">ACESSAR →</span>
                 </div>
                 <div onclick="goName()" class="card cursor-pointer text-center py-10 px-6">
                     <div class="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center text-lg font-bold" style="background:var(--acc-l);color:var(--acc);font-family:Playfair Display,serif">P</div>
                     <h3 class="text-xl font-bold mb-2">Participante</h3>
-                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Responder questões de múltipla escolha e ver estatísticas ao vivo</p>
+                    <p class="text-xs leading-relaxed mb-5" style="color:var(--muted)">Responder questões de múltipla escolha dos casos clínicos</p>
                     <span class="text-xs font-semibold tracking-wide" style="color:var(--acc)">ACESSAR →</span>
                 </div>
             </div>
@@ -165,7 +165,7 @@
     <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
         <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-                <button type="button" onclick="stopPoll();goHome()" class="btn-s text-xs py-2 px-3">Sair</button>
+                <button type="button" onclick="goHome()" class="btn-s text-xs py-2 px-3">Sair</button>
                 <div class="sep"></div>
                 <div><p class="text-sm font-semibold" id="dTitle"></p><p class="text-xs" style="color:var(--muted)" id="dSub"></p></div>
             </div>
@@ -209,9 +209,9 @@ var MAX_Q=5,MAX_CASES=20,PASS='medartis@2026';
 var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
 var FB_DB_TOKEN='';
 var useRemote=false;
-var adminParticipants=[],adminByKey={},cachedAllAns=null;
+var adminParticipants=[],adminByKey={};
 var statsCaseFilter='all';
-var pollTimer=null,saveTimer=null,lastDbError='';
+var saveTimer=null,lastDbError='';
 
 /* ====== UTILITÁRIOS ====== */
 function $(i){return document.getElementById(i)}
@@ -266,6 +266,9 @@ async function dbDeleteByKey(key){if(!useRemote||!key)return false;try{await dbR
 async function dbSaveDefenders(qKey,data){if(!useRemote)return false;try{await dbReq('defenders/'+qKey,'PUT',data);return true}catch(e){return false}}
 async function dbLoadAllDefenders(){if(!useRemote)return{};try{var d=await dbReq('defenders','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
 async function dbClearAllDefenders(){if(!useRemote)return false;try{await dbReq('defenders','DELETE');return true}catch(e){return false}}
+async function dbSavePresenter(ci,data){if(!useRemote)return false;try{await dbReq('presenters/'+ci,'PUT',data);return true}catch(e){return false}}
+async function dbLoadAllPresenters(){if(!useRemote)return{};try{var d=await dbReq('presenters','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
+async function dbClearPresenter(ci){if(!useRemote)return false;try{await dbReq('presenters/'+ci,'DELETE');return true}catch(e){return false}}
 
 /* ====== MODELO DE DADOS ====== */
 function mkQ(){return{text:'',options:[{label:'A',text:''},{label:'B',text:''},{label:'C',text:''},{label:'D',text:''}],expl:''}}
@@ -348,6 +351,20 @@ async function selectDefenders(ci,qi){
     return result;
 }
 
+/* ====== APRESENTADOR DO CASO (MANUAL OU SORTEIO) ====== */
+async function setPresenterManual(ci,key,name){
+    var result={name:name,key:key,method:'manual',selectedAt:new Date().toISOString()};
+    await dbSavePresenter(ci,result);
+    return result;
+}
+async function drawPresenter(ci,candidates){
+    if(!candidates||!candidates.length){toast('Nenhum participante disponível para sortear','warn');return null}
+    var picked=pickRandom(candidates);
+    var result={name:picked.name,key:picked.key,method:'sorteio',selectedAt:new Date().toISOString()};
+    await dbSavePresenter(ci,result);
+    return result;
+}
+
 /* ====== PROGRESSO ====== */
 function participantProgress(ans){
     var total=getTotalQuestions();
@@ -355,37 +372,11 @@ function participantProgress(ans){
     return{answered:answered,total:total,pct:total?Math.round((answered/total)*100):0};
 }
 
-/* ====== POLLING (TEMPO REAL) ====== */
-function startPoll(){stopPoll();pollAnswers();pollTimer=setInterval(pollAnswers,4000)}
-function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
-async function pollAnswers(){
-    try{
-        var d=await dbLoadAllAnswers();
-        var changed=JSON.stringify(d)!==JSON.stringify(cachedAllAns);
-        cachedAllAns=d;
-        if(changed)updateLiveStats(d);
-    }catch(e){}
-}
-function updateLiveStats(allAns){
-    if(!allAns)return;
-    /* Atualiza barras de estatística nas questões já respondidas pelo participante */
-    getConfiguredCases().forEach(function(ci){
-        cases[ci].qs.forEach(function(q,qi){
-            if(!q.text||!q.text.trim())return;
-            if(!pAns[ci]||!pAns[ci][qi])return;
-            var el=$('qs_'+ci+'_'+qi);
-            if(!el)return;
-            var stats=computeQStats(ci,qi,allAns);
-            el.innerHTML=renderStatBars(stats,pAns[ci][qi]);
-        });
-    });
-}
-
 /* ====== SALVAR RESPOSTAS (DEBOUNCED) ====== */
 function debouncedSave(){if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(async function(){if(!await dbSaveAnswers(pName,pAns))console.warn('Erro ao salvar')},800)}
 
 /* ====== NAVEGAÇÃO ====== */
-function goHome(){stopPoll();show('sLanding')}
+function goHome(){show('sLanding')}
 function goName(){$('pNameIn').value='';show('sName');setTimeout(function(){$('pNameIn').focus()},300)}
 async function enterDash(){
     var n=$('pNameIn').value.trim();
@@ -393,9 +384,9 @@ async function enterDash(){
     pName=n;
     var remote=await dbLoadAnswers(pName);
     pAns=(remote&&typeof remote==='object')?remote:{};
-    renDash();show('sDash');startPoll();
+    renDash();show('sDash');
 }
-function goDash(){renDash();show('sDash');startPoll()}
+function goDash(){renDash();show('sDash')}
 
 /* ====== SENHA ====== */
 function openPass(){$('modalPass').style.display='flex';$('passIn').value='';setTimeout(function(){$('passIn').focus()},150)}
@@ -467,26 +458,11 @@ function renABody(){
 async function renStatsView(){
     var allAns=await dbLoadAllAnswers();
     var allDefs=await dbLoadAllDefenders();
+    var allPresenters=await dbLoadAllPresenters();
     var caseIdx=getConfiguredCases();
     var totalP=Object.keys(allAns).length;
-    var totalResp=0,questTotal=0;
-    caseIdx.forEach(function(ci){
-        cases[ci].qs.forEach(function(q,qi){
-            if(!q.text||!q.text.trim())return;
-            questTotal++;
-            var st=computeQStats(ci,qi,allAns);
-            totalResp+=st.total;
-        });
-    });
 
     var h='<div class="space-y-6">';
-    /* Cards resumo */
-    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">';
-    h+='<div class="card" style="text-align:center;padding:16px"><p class="text-2xl font-bold" style="color:var(--pri);font-family:Playfair Display,serif">'+totalP+'</p><p class="text-xs" style="color:var(--muted)">Participantes</p></div>';
-    h+='<div class="card" style="text-align:center;padding:16px"><p class="text-2xl font-bold" style="color:var(--acc);font-family:Playfair Display,serif">'+totalResp+'</p><p class="text-xs" style="color:var(--muted)">Respostas</p></div>';
-    h+='<div class="card" style="text-align:center;padding:16px"><p class="text-2xl font-bold" style="color:var(--ok);font-family:Playfair Display,serif">'+questTotal+'</p><p class="text-xs" style="color:var(--muted)">Perguntas Ativas</p></div>';
-    h+='<div class="card" style="text-align:center;padding:16px"><p class="text-2xl font-bold" style="color:var(--oc);font-family:Playfair Display,serif">'+caseIdx.length+'</p><p class="text-xs" style="color:var(--muted)">Casos Ativos</p></div>';
-    h+='</div>';
 
     if(!caseIdx.length){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum caso configurado.</div>';$('aBody').innerHTML=h;return}
     if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante respondeu ainda.</div>';$('aBody').innerHTML=h;return}
@@ -501,10 +477,38 @@ async function renStatsView(){
 
     var visibleCaseIdx=statsCaseFilter==='all'?caseIdx:caseIdx.filter(function(ci){return ci===statsCaseFilter});
 
+    /* Lista de participantes (usada tamb\u00e9m para escolher apresentador) */
+    var partList=[];
+    Object.keys(allAns).forEach(function(key){
+        var item=allAns[key];
+        var sc=participantProgress(item.answers_json);
+        partList.push({key:key,name:item.participant_name||'Anônimo',score:sc,updatedAt:item.updated_at||'',answers:item.answers_json});
+    });
+    partList.sort(function(a,b){return(b.score.pct-a.score.pct)||(new Date(b.updatedAt||0)-new Date(a.updatedAt||0))});
+
     /* Por caso e questão */
     visibleCaseIdx.forEach(function(ci){
         var c=cases[ci];
-        h+='<div class="card" style="padding:20px"><div class="flex flex-wrap items-center justify-between gap-2 mb-1"><h4 class="text-lg font-bold" style="color:var(--pri)">Caso '+(ci+1)+'</h4><button type="button" onclick="doSelectDefendersCase('+ci+',this)" class="btn-s text-xs py-2 px-3">Sortear Defensores do Caso</button></div><p class="text-sm mb-5" style="color:var(--txt2)">'+esc(c.title)+'</p>';
+        var presenter=allPresenters[ci]||null;
+        h+='<div class="card" style="padding:20px"><div class="flex flex-wrap items-center justify-between gap-2 mb-1"><h4 class="text-lg font-bold" style="color:var(--pri)">Caso '+(ci+1)+'</h4><button type="button" onclick="doSelectDefendersCase('+ci+',this)" class="btn-s text-xs py-2 px-3">Sortear Defensores do Caso</button></div><p class="text-sm mb-4" style="color:var(--txt2)">'+esc(c.title)+'</p>';
+        /* Apresentador do caso */
+        h+='<div class="mb-5 p-3 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+        h+='<p class="text-xs font-bold mb-2" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Apresentador do Caso</p>';
+        if(presenter&&presenter.selectedAt){
+            h+='<div class="flex flex-wrap items-center gap-3 mb-3">';
+            h+='<span class="badge" style="background:var(--pri-l);color:var(--pri)">'+esc(presenter.name)+'</span>';
+            h+='<span class="text-xs" style="color:var(--muted)">'+(presenter.method==='sorteio'?'Sorteado':'Selecionado')+' em '+fmtDate(presenter.selectedAt)+'</span>';
+            h+='<button type="button" onclick="doClearPresenter('+ci+')" class="btn-d text-xs py-1 px-2">Remover</button>';
+            h+='</div>';
+        }
+        h+='<div class="flex flex-wrap items-center gap-2">';
+        h+='<select id="presSel_'+ci+'" class="inp" style="max-width:220px;width:auto;display:inline-block">';
+        h+='<option value="">Selecionar participante...</option>';
+        partList.forEach(function(p){h+='<option value="'+esc(p.key)+'">'+esc(p.name)+'</option>'});
+        h+='</select>';
+        h+='<button type="button" onclick="doSetPresenter('+ci+')" class="btn-s text-xs py-2 px-3">Definir</button>';
+        h+='<button type="button" onclick="doDrawPresenter('+ci+',this)" class="btn-p text-xs py-2 px-3">Sortear Apresentador</button>';
+        h+='</div></div>';
         var hasQ=false;
         c.qs.forEach(function(q,qi){
             if(!q.text||!q.text.trim())return;
@@ -556,13 +560,6 @@ async function renStatsView(){
 
     /* Lista de participantes */
     h+='<div class="card" style="padding:20px"><h4 class="text-lg font-bold mb-4">Todos os Participantes</h4>';
-    var partList=[];
-    Object.keys(allAns).forEach(function(key){
-        var item=allAns[key];
-        var sc=participantProgress(item.answers_json);
-        partList.push({key:key,name:item.participant_name||'Anônimo',score:sc,updatedAt:item.updated_at||'',answers:item.answers_json});
-    });
-    partList.sort(function(a,b){return(b.score.pct-a.score.pct)||(new Date(b.updatedAt||0)-new Date(a.updatedAt||0))});
     if(!partList.length){h+='<p class="text-sm" style="color:var(--muted)">Nenhum participante.</p>'}
     else{
         h+='<div style="overflow:auto;border:1px solid var(--bdr-l);border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:500px">';
@@ -618,6 +615,30 @@ async function clearAllDef(){
     await dbClearAllDefenders();toast('Sorteios limpos','info');renStatsView();
 }
 
+async function doSetPresenter(ci){
+    var sel=$('presSel_'+ci);
+    var key=sel.value;
+    if(!key){toast('Selecione um participante','warn');return}
+    var name=sel.options[sel.selectedIndex].textContent;
+    await setPresenterManual(ci,key,name);
+    toast('Apresentador definido','ok');
+    renStatsView();
+}
+
+async function doDrawPresenter(ci,btn){
+    btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Sorteando...';
+    var allAns=await dbLoadAllAnswers();
+    var candidates=Object.keys(allAns).map(function(key){return{name:allAns[key].participant_name||'Anônimo',key:key}});
+    var result=await drawPresenter(ci,candidates);
+    if(result){toast('Apresentador sorteado: '+result.name,'ok');renStatsView()}
+    else{btn.disabled=false;btn.textContent='Sortear Apresentador'}
+}
+
+async function doClearPresenter(ci){
+    if(!confirm('Remover o apresentador deste caso?'))return;
+    await dbClearPresenter(ci);toast('Apresentador removido','info');renStatsView();
+}
+
 /* ====== ADMIN: VER PARTICIPANTE ====== */
 function viewPart(key){
     var p=adminByKey[key];if(!p){toast('Não encontrado','err');return}
@@ -667,11 +688,8 @@ async function loadAdminData(){
 }
 
 function renAdminSummary(){
-    var totalQ=getTotalQuestions();var totalP=adminParticipants.length;var avgC=0;
-    adminParticipants.forEach(function(p){avgC+=p.score.pct});
-    avgC=totalP?Math.round(avgC/totalP):0;
-    var h='<div class="flex flex-wrap items-center justify-between gap-3 mb-4"><div><h3 class="text-lg font-bold">Resumo</h3><p class="text-xs" style="color:var(--muted)">Participantes e respostas</p></div>';
-    h+='<div class="flex gap-2"><span class="badge" style="background:var(--pri-l);color:var(--pri)">'+totalP+' participante(s)</span><span class="badge" style="background:var(--acc-l);color:var(--acc)">'+avgC+'% concluído médio</span></div></div>';
+    var totalQ=getTotalQuestions();var totalP=adminParticipants.length;
+    var h='<div class="mb-4"><h3 class="text-lg font-bold">Participantes</h3><p class="text-xs" style="color:var(--muted)">Gerenciar respostas de cada participante</p></div>';
     if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante ainda.</div>';$('aSummary').innerHTML=h;return}
     h+='<div class="space-y-2">';
     adminParticipants.forEach(function(p){
@@ -728,13 +746,14 @@ async function resetAll(){
 }
 
 /* ====== DASHBOARD PARTICIPANTE ====== */
-function renDash(){
+async function renDash(){
     $('dTitle').textContent=pName;
     var avail=getConfiguredCases();var total=0,ansCnt=0;
     avail.forEach(function(ci){cases[ci].qs.forEach(function(q){if(q.text.trim())total++})});
     avail.forEach(function(ci){cases[ci].qs.forEach(function(q,qi){if(q.text.trim()&&pAns[ci]&&pAns[ci][qi])ansCnt++})});
     $('dSub').textContent=avail.length+' caso(s) — '+ansCnt+'/'+total+' respondidas';
     if(!avail.length){$('dBody').innerHTML='<div class="card text-center py-16"><h3 class="text-xl font-bold mb-2">Nenhum caso disponível</h3><p class="text-sm" style="color:var(--muted)">Aguarde o administrador configurar.</p></div>';return}
+    var allPresenters=await dbLoadAllPresenters();
     var h='<div class="case-grid">';
     avail.forEach(function(ci,idx){
         var c=cases[ci];var qC=0,aC=0;
@@ -744,10 +763,12 @@ function renDash(){
         if(aC>0&&aC<qC){st='prog';sT='Em andamento';sC='var(--warn)'}
         else if(aC>=qC&&qC>0){st='done';sT='Concluído';sC='var(--ok)'}
         var pct=qC>0?Math.round((aC/qC)*100):0;
+        var presenter=allPresenters[ci];
         h+='<div class="card cursor-pointer" onclick="openC('+ci+')" style="animation:su .4s ease both;animation-delay:'+(idx*70)+'ms">';
         h+='<div class="flex items-center justify-between mb-3"><span class="badge" style="background:var(--pri-l);color:var(--pri)">CASO '+(ci+1)+'</span><div class="flex items-center gap-2"><span class="dot '+st+'"></span><span class="text-xs" style="color:'+sC+'">'+sT+'</span></div></div>';
         h+='<h3 class="font-bold text-sm mb-2 leading-snug" style="font-family:Playfair Display,serif">'+esc(c.title)+'</h3>';
         if(c.img)h+='<img src="'+c.img+'" class="w-full h-28 object-cover rounded-lg mb-3" alt="">';
+        if(presenter&&presenter.selectedAt)h+='<p class="text-xs mb-2" style="color:var(--acc)">Apresentador: <span style="font-weight:700">'+esc(presenter.name)+'</span></p>';
         h+='<div class="flex items-center justify-between text-xs mb-2"><span style="color:var(--muted)">'+aC+'/'+qC+' perguntas</span><span style="color:'+sC+'">'+pct+'%</span></div>';
         h+='<div class="pbar"><div class="pfill" style="width:'+pct+'%"></div></div>';
         h+='</div>';
@@ -762,13 +783,16 @@ function openC(ci){
     $('cLabel').textContent='CASO '+(ci+1);
 }
 
-function renCase(ci){
+async function renCase(ci){
     var c=cases[ci];
+    var allPresenters=await dbLoadAllPresenters();
+    var presenter=allPresenters[ci];
     var h='<div class="space-y-6">';
     /* Info do caso */
     h+='<div class="card">';
     h+='<h2 class="text-xl font-bold mb-2" style="color:var(--pri)">Caso '+(ci+1)+'</h2>';
     h+='<h3 class="text-lg font-bold mb-4">'+esc(c.title)+'</h3>';
+    if(presenter&&presenter.selectedAt)h+='<p class="text-sm mb-3" style="color:var(--acc)">Apresentador: <span style="font-weight:700">'+esc(presenter.name)+'</span></p>';
     if(c.img)h+='<img src="'+c.img+'" class="w-full max-h-80 object-contain rounded-lg mb-4" alt="">';
     if(c.desc)h+='<p class="text-sm leading-relaxed" style="color:var(--txt2);white-space:pre-line">'+esc(c.desc)+'</p>';
     h+='</div>';
@@ -790,13 +814,6 @@ function renCase(ci){
             h+='<div><span class="text-sm font-bold" style="color:'+optColor(l)+'">'+l+') </span><span class="text-sm">'+esc(oTxt)+'</span></div>';
             h+='</div>';
         });
-        /* Estatísticas (aparece após responder) */
-        if(myChoice){
-            h+='<div class="mt-4" id="qs_'+ci+'_'+qi+'">';
-            if(cachedAllAns){var stats=computeQStats(ci,qi,cachedAllAns);h+=renderStatBars(stats,myChoice)}
-            else{h+='<div class="p-3 text-center text-xs" style="color:var(--muted)"><span class="spinner"></span> Carregando estatísticas...</div>'}
-            h+='</div>';
-        }
         h+='</div>';
     });
     h+='<div class="text-center"><button type="button" onclick="finishCase('+ci+')" class="btn-p">Enviar Respostas e Voltar aos Casos</button></div>';
@@ -822,14 +839,12 @@ async function finishCase(ci){
 async function submitAns(){
     var total=getTotalQuestions();var ansCnt=getAnsweredCount(pAns);
     if(ansCnt<total){toast('Responda todas as '+total+' questões primeiro ('+ansCnt+'/'+total+')','warn');return}
-    stopPoll();
     await dbSaveAnswers(pName,pAns);
     showResults();
 }
 
 /* ====== RESULTADOS ====== */
 async function showResults(){
-    var allAns=await dbLoadAllAnswers();
     var allDefs=await dbLoadAllDefenders();
     var sc=participantProgress(pAns);
     var h='<div class="space-y-6">';
@@ -840,13 +855,15 @@ async function showResults(){
     h+='<p class="text-lg" style="color:var(--txt2)">perguntas respondidas</p>';
     h+='</div>';
     /* Detalhamento por questão */
+    var allPresenters=await dbLoadAllPresenters();
     getConfiguredCases().forEach(function(ci){
         var c=cases[ci];
-        h+='<div class="card" style="padding:20px"><h4 class="text-base font-bold mb-3" style="color:var(--pri)">Caso '+(ci+1)+': '+esc(c.title)+'</h4>';
+        var presenter=allPresenters[ci];
+        h+='<div class="card" style="padding:20px"><h4 class="text-base font-bold mb-1" style="color:var(--pri)">Caso '+(ci+1)+': '+esc(c.title)+'</h4>';
+        if(presenter&&presenter.selectedAt)h+='<p class="text-sm mb-3" style="color:var(--acc)">Apresentador: <span style="font-weight:700">'+esc(presenter.name)+'</span></p>';
         c.qs.forEach(function(q,qi){
             if(!q.text||!q.text.trim())return;
             var myChoice=(pAns[ci]&&pAns[ci][qi])||'—';
-            var stats=computeQStats(ci,qi,allAns);
             var qKey=ci+'_'+qi;
             var def=allDefs[qKey]||null;
             var iAmDefender=def&&def[myChoice]&&def[myChoice].key===btoa(unescape(encodeURIComponent(pName.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -859,8 +876,6 @@ async function showResults(){
             h+='<div class="flex flex-wrap gap-3 mb-3 text-sm">';
             h+='<div class="p-3 rounded-lg flex-1" style="background:var(--bg2);border:1px solid var(--bdr-l)"><p class="text-xs font-bold mb-1" style="color:var(--muted)">Sua resposta</p><p class="font-semibold" style="color:'+optColor(myChoice)+'">'+myChoice+') '+esc(q.options[['A','B','C','D'].indexOf(myChoice)]?q.options[['A','B','C','D'].indexOf(myChoice)].text:'')+'</p></div>';
             h+='</div>';
-            /* Estatísticas */
-            h+=renderStatBars(stats,myChoice);
             /* Se fui sorteado como defensor */
             if(iAmDefender)h+='<div class="mt-3 p-3 rounded-lg text-center text-sm font-semibold" style="background:var(--acc-l);border:1px solid rgba(230,81,0,.2);color:var(--acc)">Você foi sorteado(a) para defender a alternativa '+myChoice+'!</div>';
             /* Defensores sorteados */
