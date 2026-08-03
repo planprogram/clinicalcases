@@ -212,7 +212,7 @@
 <script>
 /* ====== ESTADO GLOBAL ====== */
 var cases=[],aTab=0,pName='',pAns={},vCase=-1;
-var MAX_Q=5,MAX_CASES=20,MIN_OPT=2,MAX_OPT=8,PASS='medartis@2026';
+var MAX_CASES=20,MIN_OPT=2,MAX_OPT=8,PASS='medartis@2026';
 var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
 var FB_DB_TOKEN='';
 var useRemote=false;
@@ -249,6 +249,27 @@ function getAnsweredCount(ans){
         cases[ci].qs.forEach(function(q,qi){if(q.text&&q.text.trim()&&ans[ci]&&Array.isArray(ans[ci][qi])&&ans[ci][qi].length)c++});
     });
     return c;
+}
+
+function getCaseQuestionCount(ci){
+    var c=cases[ci];
+    if(!c||!Array.isArray(c.qs))return 0;
+    var total=0;
+    c.qs.forEach(function(q){if(q&&q.text&&q.text.trim())total++});
+    return total;
+}
+
+function participantCaseProgress(ans,ci){
+    var total=getCaseQuestionCount(ci);
+    var answered=0;
+    var c=cases[ci];
+    if(c&&Array.isArray(c.qs)){
+        c.qs.forEach(function(q,qi){
+            if(!q||!q.text||!q.text.trim())return;
+            if(ans&&ans[ci]&&Array.isArray(ans[ci][qi])&&ans[ci][qi].length)answered++;
+        });
+    }
+    return{answered:answered,total:total,pct:total?Math.round((answered/total)*100):0};
 }
 
 /* ====== FIREBASE (REST) ====== */
@@ -291,7 +312,6 @@ function normalizeCases(){
         if(!c)Object.assign(c,mkC());
         if(typeof c.optCount!=='number'||c.optCount<MIN_OPT||c.optCount>MAX_OPT)c.optCount=4;
         if(!Array.isArray(c.qs)||c.qs.length===0)c.qs=[mkQ(c.optCount)];
-        while(c.qs.length>MAX_Q)c.qs.pop();
         c.qs.forEach(function(q){
             if(typeof q.text!=='string')q.text='';
             if(!Array.isArray(q.options))q.options=[];
@@ -428,7 +448,7 @@ function renATabs(){
     if(cases.length<MAX_CASES)h+='<button type="button" onclick="addCase()" class="btn-s text-xs py-2 px-3">+ Caso</button>';
     $('aTabs').innerHTML=h;
 }
-function swTab(i){aTab=i;renATabs();renABody()}
+function swTab(i){aTab=i;renATabs();renABody();renAdminSummary()}
 
 /* ====== ADMIN: CONTEÚDO ====== */
 function renABody(){
@@ -449,8 +469,8 @@ function renABody(){
     for(var nOpt=MIN_OPT;nOpt<=MAX_OPT;nOpt++)h+='<option value="'+nOpt+'"'+(c.optCount===nOpt?' selected':'')+'>'+nOpt+' alternativas</option>';
     h+='</select></div>';
     /* Perguntas */
-    h+='<div><div class="flex items-center justify-between mb-4"><label class="label" style="margin:0">Perguntas ('+c.qs.length+'/'+MAX_Q+')</label>';
-    if(c.qs.length<MAX_Q)h+='<button type="button" onclick="addQ('+i+')" class="btn-s text-xs py-1 px-3">+ Pergunta</button>';
+    h+='<div><div class="flex items-center justify-between mb-4"><label class="label" style="margin:0">Perguntas ('+c.qs.length+')</label>';
+    h+='<button type="button" onclick="addQ('+i+')" class="btn-s text-xs py-1 px-3">+ Pergunta</button>';
     h+='</div><div class="space-y-6">';
     for(var qi=0;qi<c.qs.length;qi++){
         var q=c.qs[qi];
@@ -618,7 +638,7 @@ async function doSelectDefenders(ci,qi,btn){
     btn.disabled=false;btn.textContent='Sortear Defensores';
 }
 
-function setStatsCase(v){statsCaseFilter=v==='all'?'all':Number(v);renStatsView()}
+function setStatsCase(v){statsCaseFilter=v==='all'?'all':Number(v);renStatsView();renAdminSummary()}
 
 async function doSelectDefendersCase(ci,btn){
     btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Sorteando...';
@@ -714,16 +734,23 @@ async function loadAdminData(){
 }
 
 function renAdminSummary(){
-    var totalQ=getTotalQuestions();var totalP=adminParticipants.length;
-    var h='<div class="mb-4"><h3 class="text-lg font-bold">Participantes</h3><p class="text-xs" style="color:var(--muted)">Gerenciar respostas de cada participante</p></div>';
+    var totalP=adminParticipants.length;
+    var cfgCases=getConfiguredCases();
+    var activeCase=null;
+    if(aTab<cases.length&&cases[aTab]&&cases[aTab].title&&cases[aTab].title.trim())activeCase=aTab;
+    else if(statsCaseFilter!=='all'&&cases[statsCaseFilter]&&cases[statsCaseFilter].title&&cases[statsCaseFilter].title.trim())activeCase=statsCaseFilter;
+    else if(cfgCases.length)activeCase=cfgCases[0];
+    var caseLabel=activeCase===null?'Sem caso selecionado':'Caso '+(activeCase+1);
+    var h='<div class="mb-4"><h3 class="text-lg font-bold">Participantes</h3><p class="text-xs" style="color:var(--muted)">Percentual de respostas por caso ('+caseLabel+')</p></div>';
     if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante ainda.</div>';$('aSummary').innerHTML=h;return}
+    if(activeCase===null){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Crie e configure pelo menos um caso.</div>';$('aSummary').innerHTML=h;return}
     h+='<div class="space-y-2">';
     adminParticipants.forEach(function(p){
-        var pct=totalQ>0?Math.round((p.score.answered/totalQ)*100):0;
-        var t=p.score.pct>=70?'var(--ok)':p.score.pct>=40?'var(--warn)':'var(--err)';
+        var sc=participantCaseProgress(p.answers,activeCase);
+        var t=sc.pct>=70?'var(--ok)':sc.pct>=40?'var(--warn)':'var(--err)';
         h+='<div class="p-3 rounded-lg flex flex-wrap items-center justify-between gap-2" style="background:var(--bg);border:1px solid var(--bdr-l)">';
         h+='<div><p class="font-semibold text-sm">'+esc(p.name)+'</p><p class="text-xs" style="color:var(--muted)">'+fmtDate(p.updatedAt)+'</p></div>';
-        h+='<div class="flex items-center gap-3"><span class="text-xs" style="color:'+t+';font-weight:600">'+p.score.pct+'%</span><div class="pbar" style="width:100px"><div class="pfill" style="width:'+pct+'%"></div></div>';
+        h+='<div class="flex items-center gap-3"><span class="text-xs" style="color:'+t+';font-weight:600">'+sc.pct+'%</span><div class="pbar" style="width:100px"><div class="pfill" style="width:'+sc.pct+'%"></div></div>';
         h+='<button type="button" onclick="viewPart(\''+esc(p.key)+'\')" class="btn-s text-xs py-1 px-2">Ver</button>';
         h+='<button type="button" onclick="delPart(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">X</button></div>';
         h+='</div>';
@@ -741,7 +768,7 @@ function hFile(ci,file){
 function hDrop(ci,e){var f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))hFile(ci,f);else toast('Imagem inválida','err')}
 
 /* ====== PERGUNTAS ADMIN ====== */
-function addQ(ci){if(cases[ci].qs.length>=MAX_Q)return;cases[ci].qs.push(mkQ(cases[ci].optCount));renABody()}
+function addQ(ci){cases[ci].qs.push(mkQ(cases[ci].optCount));renABody()}
 function rmQ(ci,qi){if(cases[ci].qs.length<=1)return;cases[ci].qs.splice(qi,1);renABody()}
 function setCaseOptCount(ci,val){
     val=parseInt(val,10);
