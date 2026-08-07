@@ -139,7 +139,6 @@
             </div>
             <div class="flex gap-2">
                 <button type="button" onclick="loadAdminData()" class="btn-s text-xs py-2 px-3">Atualizar</button>
-                <button type="button" onclick="resetAll()" class="btn-d text-xs">Limpar Tudo</button>
                 <button type="button" onclick="saveAll()" class="btn-p text-xs py-2 px-5">Salvar Casos</button>
             </div>
         </div>
@@ -217,7 +216,7 @@ var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
 var FB_DB_TOKEN='';
 var useRemote=false;
 var adminParticipants=[],adminByKey={};
-var statsCaseFilter='all';
+var statsCaseFilter=0;
 var saveTimer=null,lastDbError='';
 
 /* ====== UTILITÁRIOS ====== */
@@ -390,6 +389,17 @@ async function selectDefenders(ci,qi){
     return result;
 }
 
+async function setDefenderManual(ci,qi,label,key,name){
+    var qKey=ci+'_'+qi;
+    var allDefs=await dbLoadAllDefenders();
+    var current=(allDefs&&allDefs[qKey]&&typeof allDefs[qKey]==='object')?allDefs[qKey]:{};
+    current[label]={name:name,key:key};
+    current.selectedAt=new Date().toISOString();
+    current.method='manual';
+    await dbSaveDefenders(qKey,current);
+    return current;
+}
+
 /* ====== APRESENTADOR DO CASO (MANUAL OU SORTEIO) ====== */
 async function setPresenterManual(ci,key,name){
     var result={name:name,key:key,method:'manual',selectedAt:new Date().toISOString()};
@@ -501,7 +511,6 @@ function renABody(){
 async function renStatsView(){
     var allAns=await dbLoadAllAnswers();
     var allDefs=await dbLoadAllDefenders();
-    var allPresenters=await dbLoadAllPresenters();
     var caseIdx=getConfiguredCases();
     var totalP=Object.keys(allAns).length;
 
@@ -511,14 +520,14 @@ async function renStatsView(){
     if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante respondeu ainda.</div>';$('aBody').innerHTML=h;return}
 
     /* Filtro por caso */
+    if(caseIdx.indexOf(statsCaseFilter)===-1)statsCaseFilter=caseIdx[0];
     h+='<div class="flex flex-wrap gap-2">';
-    h+='<button type="button" onclick="setStatsCase(\'all\')" class="tab '+(statsCaseFilter==='all'?'on':'')+'" style="border-radius:8px;border-bottom:1px solid var(--bdr-l)">Todos os Casos</button>';
     caseIdx.forEach(function(ci){
         h+='<button type="button" onclick="setStatsCase('+ci+')" class="tab '+(statsCaseFilter===ci?'on':'')+'" style="border-radius:8px;border-bottom:1px solid var(--bdr-l)">Caso '+(ci+1)+'</button>';
     });
     h+='</div>';
 
-    var visibleCaseIdx=statsCaseFilter==='all'?caseIdx:caseIdx.filter(function(ci){return ci===statsCaseFilter});
+    var visibleCaseIdx=caseIdx.filter(function(ci){return ci===statsCaseFilter});
 
     /* Lista de participantes (usada tamb\u00e9m para escolher apresentador) */
     var partList=[];
@@ -532,26 +541,7 @@ async function renStatsView(){
     /* Por caso e questão */
     visibleCaseIdx.forEach(function(ci){
         var c=cases[ci];
-        var presenter=allPresenters[ci]||null;
         h+='<div class="card" style="padding:20px"><div class="flex flex-wrap items-center justify-between gap-2 mb-1"><h4 class="text-lg font-bold" style="color:var(--pri)">Caso '+(ci+1)+'</h4><button type="button" onclick="doSelectDefendersCase('+ci+',this)" class="btn-s text-xs py-2 px-3">Sortear Defensores do Caso</button></div><p class="text-sm mb-4" style="color:var(--txt2)">'+esc(c.title)+'</p>';
-        /* Apresentador do caso */
-        h+='<div class="mb-5 p-3 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)">';
-        h+='<p class="text-xs font-bold mb-2" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Apresentador do Caso</p>';
-        if(presenter&&presenter.selectedAt){
-            h+='<div class="flex flex-wrap items-center gap-3 mb-3">';
-            h+='<span class="badge" style="background:var(--pri-l);color:var(--pri)">'+esc(presenter.name)+'</span>';
-            h+='<span class="text-xs" style="color:var(--muted)">'+(presenter.method==='sorteio'?'Sorteado':'Selecionado')+' em '+fmtDate(presenter.selectedAt)+'</span>';
-            h+='<button type="button" onclick="doClearPresenter('+ci+')" class="btn-d text-xs py-1 px-2">Remover</button>';
-            h+='</div>';
-        }
-        h+='<div class="flex flex-wrap items-center gap-2">';
-        h+='<select id="presSel_'+ci+'" class="inp" style="max-width:220px;width:auto;display:inline-block">';
-        h+='<option value="">Selecionar participante...</option>';
-        partList.forEach(function(p){h+='<option value="'+esc(p.key)+'">'+esc(p.name)+'</option>'});
-        h+='</select>';
-        h+='<button type="button" onclick="doSetPresenter('+ci+')" class="btn-s text-xs py-2 px-3">Definir</button>';
-        h+='<button type="button" onclick="doDrawPresenter('+ci+',this)" class="btn-p text-xs py-2 px-3">Sortear Apresentador</button>';
-        h+='</div></div>';
         var hasQ=false;
         c.qs.forEach(function(q,qi){
             if(!q.text||!q.text.trim())return;
@@ -566,6 +556,28 @@ async function renStatsView(){
             h+='</div>';
             /* Barras */
             h+=renderStatBars(stats,null);
+            /* Seleção manual de defensor por alternativa */
+            h+='<div class="mt-3 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)">';
+            h+='<p class="text-xs font-bold mb-2" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Escolher defensor da pergunta</p>';
+            q.options.forEach(function(o){
+                var l=o.label;
+                var candByKey={};
+                var cand=[];
+                if(stats[l]&&stats[l].people&&stats[l].people.length){
+                    stats[l].people.forEach(function(p){if(!candByKey[p.key]){candByKey[p.key]=1;cand.push(p)}});
+                }
+                var curr=def&&def[l]?def[l]:null;
+                h+='<div class="flex flex-wrap items-center gap-2 mb-2">';
+                h+='<span class="text-xs font-bold" style="color:'+optColor(l)+';width:16px">'+l+'</span>';
+                h+='<select id="defSel_'+ci+'_'+qi+'_'+l+'" class="inp" style="max-width:280px;width:auto;display:inline-block">';
+                h+='<option value="">'+(cand.length?'Selecionar defensor...':'Sem respondentes nesta alternativa')+'</option>';
+                cand.forEach(function(p){h+='<option value="'+esc(p.key)+'">'+esc(p.name)+'</option>'});
+                h+='</select>';
+                h+='<button type="button" onclick="doSetDefender('+ci+','+qi+',\''+l+'\')" class="btn-s text-xs py-1 px-3">Definir</button>';
+                if(curr&&curr.name)h+='<span class="badge" style="background:'+optColorL(l)+';color:'+optColor(l)+'">'+esc(curr.name)+'</span>';
+                h+='</div>';
+            });
+            h+='</div>';
             /* Detalhamento por pessoa */
             h+='<details class="mt-3"><summary class="text-xs cursor-pointer font-semibold" style="color:var(--pri)">Ver quem escolheu o quê</summary><div class="mt-2 space-y-1">';
             q.options.forEach(function(o){
@@ -638,7 +650,17 @@ async function doSelectDefenders(ci,qi,btn){
     btn.disabled=false;btn.textContent='Sortear Defensores';
 }
 
-function setStatsCase(v){statsCaseFilter=v==='all'?'all':Number(v);renStatsView();renAdminSummary()}
+async function doSetDefender(ci,qi,label){
+    var sel=$('defSel_'+ci+'_'+qi+'_'+label);
+    if(!sel||!sel.value){toast('Selecione um participante para a alternativa '+label,'warn');return}
+    var key=sel.value;
+    var name=sel.options[sel.selectedIndex].textContent;
+    await setDefenderManual(ci,qi,label,key,name);
+    toast('Defensor da alternativa '+label+' definido','ok');
+    renStatsView();
+}
+
+function setStatsCase(v){statsCaseFilter=Number(v);renStatsView();renAdminSummary()}
 
 async function doSelectDefendersCase(ci,btn){
     btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Sorteando...';
@@ -738,7 +760,7 @@ function renAdminSummary(){
     var cfgCases=getConfiguredCases();
     var activeCase=null;
     if(aTab<cases.length&&cases[aTab]&&cases[aTab].title&&cases[aTab].title.trim())activeCase=aTab;
-    else if(statsCaseFilter!=='all'&&cases[statsCaseFilter]&&cases[statsCaseFilter].title&&cases[statsCaseFilter].title.trim())activeCase=statsCaseFilter;
+    else if(cases[statsCaseFilter]&&cases[statsCaseFilter].title&&cases[statsCaseFilter].title.trim())activeCase=statsCaseFilter;
     else if(cfgCases.length)activeCase=cfgCases[0];
     var caseLabel=activeCase===null?'Sem caso selecionado':'Caso '+(activeCase+1);
     var h='<div class="mb-4"><h3 class="text-lg font-bold">Participantes</h3><p class="text-xs" style="color:var(--muted)">Percentual de respostas por caso ('+caseLabel+')</p></div>';
