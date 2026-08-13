@@ -218,13 +218,16 @@ var useRemote=false;
 var adminParticipants=[],adminByKey={};
 var statsCaseFilter=0;
 var saveTimer=null,lastDbError='';
+var participantSyncId=null,participantSyncBusy=false;
+var participantDefenderState={};
 
 /* ====== UTILITÁRIOS ====== */
 function $(i){return document.getElementById(i)}
-function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');window.scrollTo(0,0)}
+function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');window.scrollTo(0,0);if(i==='sDash'||i==='sCase'||i==='sRes')startParticipantSync();else stopParticipantSync()}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(m,t){t=t||'info';var c={ok:'t-ok',err:'t-err',info:'t-info',warn:'t-warn'}[t]||'t-info';var e=document.createElement('div');e.className='toast '+c;e.textContent=m;$('toasts').appendChild(e);setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3500)}
 function fmtDate(iso){if(!iso)return'—';try{return new Date(iso).toLocaleString('pt-BR')}catch(e){return'—'}}
+function getParticipantKey(name){if(!name)return'';return btoa(unescape(encodeURIComponent(name.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 var OPT_PALETTE=[{c:'#00897B',l:'#E0F2F1'},{c:'#E65100',l:'#FFF3E0'},{c:'#1565C0',l:'#E3F2FD'},{c:'#7B1FA2',l:'#F3E5F5'},{c:'#C2185B',l:'#FCE4EC'},{c:'#2E7D32',l:'#E8F5E9'},{c:'#5D4037',l:'#EFEBE9'},{c:'#455A64',l:'#ECEFF1'}];
 function optIdx(l){if(!l)return 0;var i=l.toUpperCase().charCodeAt(0)-65;return i>=0?i%OPT_PALETTE.length:0}
 function optColor(l){return OPT_PALETTE[optIdx(l)].c}
@@ -234,6 +237,14 @@ function optLabels(n){var out=[];for(var i=0;i<n;i++)out.push(String.fromCharCod
 function getConfiguredCases(){
     var out=[];
     for(var i=0;i<cases.length;i++){var c=cases[i];if(c&&c.title&&c.title.trim())out.push(i)}
+    return out;
+}
+function getReleasedCases(){
+    var out=[];
+    for(var i=0;i<cases.length;i++){
+        var c=cases[i];
+        if(c&&c.title&&c.title.trim()&&c.released)out.push(i);
+    }
     return out;
 }
 function getTotalQuestions(){
@@ -258,17 +269,76 @@ function getCaseQuestionCount(ci){
     return total;
 }
 
+function getReleasedQuestionCount(ci){
+    var c=cases[ci];
+    if(!c||!Array.isArray(c.qs)||!c.released)return 0;
+    var total=0;
+    c.qs.forEach(function(q){if(q&&q.released&&q.text&&q.text.trim())total++});
+    return total;
+}
+
+function getParticipantTotalQuestions(){
+    var t=0;
+    getReleasedCases().forEach(function(ci){t+=getReleasedQuestionCount(ci)});
+    return t;
+}
+
+function getParticipantAnsweredCount(ans){
+    var c=0;
+    if(!ans)return 0;
+    getReleasedCases().forEach(function(ci){
+        cases[ci].qs.forEach(function(q,qi){if(q.released&&q.text&&q.text.trim()&&ans[ci]&&Array.isArray(ans[ci][qi])&&ans[ci][qi].length)c++});
+    });
+    return c;
+}
+
 function participantCaseProgress(ans,ci){
-    var total=getCaseQuestionCount(ci);
+    var total=getReleasedQuestionCount(ci);
     var answered=0;
     var c=cases[ci];
-    if(c&&Array.isArray(c.qs)){
+    if(c&&c.released&&Array.isArray(c.qs)){
         c.qs.forEach(function(q,qi){
-            if(!q||!q.text||!q.text.trim())return;
+            if(!q||!q.released||!q.text||!q.text.trim())return;
             if(ans&&ans[ci]&&Array.isArray(ans[ci][qi])&&ans[ci][qi].length)answered++;
         });
     }
     return{answered:answered,total:total,pct:total?Math.round((answered/total)*100):0};
+}
+
+function getParticipantDefenderAssignments(allDefs){
+    var assignments=[];
+    var myKey=getParticipantKey(pName);
+    if(!myKey||!allDefs)return assignments;
+    Object.keys(allDefs).forEach(function(qKey){
+        var def=allDefs[qKey];
+        if(!def||typeof def!=='object')return;
+        var parts=qKey.split('_');
+        var ci=parseInt(parts[0],10),qi=parseInt(parts[1],10);
+        if(isNaN(ci)||isNaN(qi))return;
+        Object.keys(def).forEach(function(label){
+            if(label==='selectedAt'||label==='method')return;
+            var picked=def[label];
+            if(picked&&picked.key===myKey)assignments.push({id:qKey+'_'+label,ci:ci,qi:qi,label:label,selectedAt:def.selectedAt||''});
+        });
+    });
+    return assignments;
+}
+
+function getCaseAssignments(assignments,ci){
+    return assignments.filter(function(item){return item.ci===ci});
+}
+
+function getQuestionAssignments(assignments,ci,qi){
+    return assignments.filter(function(item){return item.ci===ci&&item.qi===qi});
+}
+
+function syncParticipantDefenderNotices(allDefs,silent){
+    var nextState={};
+    getParticipantDefenderAssignments(allDefs).forEach(function(item){
+        nextState[item.id]=1;
+        if(!silent&&!participantDefenderState[item.id])toast('Você foi escolhido(a) para defender a alternativa '+item.label+' no caso '+(item.ci+1)+', pergunta '+(item.qi+1)+'.','info');
+    });
+    participantDefenderState=nextState;
 }
 
 /* ====== FIREBASE (REST) ====== */
@@ -299,8 +369,8 @@ async function dbLoadAllPresenters(){if(!useRemote)return{};try{var d=await dbRe
 async function dbClearPresenter(ci){if(!useRemote)return false;try{await dbReq('presenters/'+ci,'DELETE');return true}catch(e){return false}}
 
 /* ====== MODELO DE DADOS ====== */
-function mkQ(n){n=n||4;var opts=[];for(var i=0;i<n;i++)opts.push({label:String.fromCharCode(65+i),text:''});return{text:'',options:opts,expl:''}}
-function mkC(){return{title:'',img:'',desc:'',optCount:4,qs:[mkQ(4)]}}
+function mkQ(n){n=n||4;var opts=[];for(var i=0;i<n;i++)opts.push({label:String.fromCharCode(65+i),text:''});return{text:'',options:opts,expl:'',released:false}}
+function mkC(){return{title:'',img:'',desc:'',optCount:4,released:false,qs:[mkQ(4)]}}
 function normalizeCases(){
     if(!Array.isArray(cases))cases=[];
     if(cases.length===0)for(var i=0;i<5;i++)cases.push(mkC());
@@ -310,9 +380,11 @@ function normalizeCases(){
     cases.forEach(function(c){
         if(!c)Object.assign(c,mkC());
         if(typeof c.optCount!=='number'||c.optCount<MIN_OPT||c.optCount>MAX_OPT)c.optCount=4;
+        if(typeof c.released!=='boolean')c.released=false;
         if(!Array.isArray(c.qs)||c.qs.length===0)c.qs=[mkQ(c.optCount)];
         c.qs.forEach(function(q){
             if(typeof q.text!=='string')q.text='';
+            if(typeof q.released!=='boolean')q.released=false;
             if(!Array.isArray(q.options))q.options=[];
             while(q.options.length<c.optCount)q.options.push({label:'',text:''});
             while(q.options.length>c.optCount)q.options.pop();
@@ -416,8 +488,8 @@ async function drawPresenter(ci,candidates){
 
 /* ====== PROGRESSO ====== */
 function participantProgress(ans){
-    var total=getTotalQuestions();
-    var answered=getAnsweredCount(ans);
+    var total=getParticipantTotalQuestions();
+    var answered=getParticipantAnsweredCount(ans);
     return{answered:answered,total:total,pct:total?Math.round((answered/total)*100):0};
 }
 
@@ -431,9 +503,10 @@ async function enterDash(){
     var n=$('pNameIn').value.trim();
     if(!n){toast('Informe seu nome','warn');$('pNameIn').focus();return}
     pName=n;
+    participantDefenderState={};
     var remote=await dbLoadAnswers(pName);
     pAns=(remote&&typeof remote==='object')?remote:{};
-    renDash();show('sDash');
+    await renDash();show('sDash');
 }
 function goDash(){renDash();show('sDash')}
 
@@ -467,6 +540,7 @@ function renABody(){
     var c=cases[aTab],i=aTab,h='<div class="space-y-6">';
     /* Título */
     h+='<div><label class="label">Título do Caso Clínico</label><input class="inp text-base font-semibold" value="'+esc(c.title)+'" oninput="cases['+i+'].title=this.value" placeholder="Ex: Fratura exposta de tíbia direita"></div>';
+    h+='<div class="p-4 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex flex-wrap items-center justify-between gap-3"><div><p class="text-sm font-semibold">Acesso do caso</p><p class="text-xs" style="color:var(--muted)">O caso so aparece para os participantes apos esta liberacao.</p></div><button type="button" onclick="toggleCaseRelease('+i+')" class="'+(c.released?'btn-p':'btn-s')+' text-xs py-2 px-4">'+(c.released?'Caso liberado':'Liberar caso')+'</button></div></div>';
     /* Imagem */
     h+='<div><label class="label">Imagem Clínica</label><div class="drop" onclick="$(\'fi_'+i+'\').click()" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');hDrop('+i+',event)"><input type="file" id="fi_'+i+'" accept="image/*" style="display:none" onchange="hFile('+i+',this.files[0])">';
     if(c.img)h+='<img src="'+c.img+'" alt="Imagem"><p class="mt-2 text-xs" style="color:var(--muted)">Clique para trocar</p>';
@@ -488,6 +562,7 @@ function renABody(){
         h+='<div class="flex items-center justify-between mb-3"><span class="text-xs font-bold tracking-wide" style="color:var(--pri)">PERGUNTA '+(qi+1)+'</span>';
         if(c.qs.length>1)h+='<button type="button" onclick="rmQ('+i+','+qi+')" class="btn-d text-xs py-1 px-2">Remover</button>';
         h+='</div>';
+        h+='<div class="mb-4 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)"><div class="flex flex-wrap items-center justify-between gap-3"><div><p class="text-sm font-semibold">Liberação da pergunta</p><p class="text-xs" style="color:var(--muted)">A pergunta aparece gradativamente aos participantes apos esta liberacao.</p></div><button type="button" onclick="toggleQuestionRelease('+i+','+qi+')" class="'+(q.released?'btn-p':'btn-s')+' text-xs py-2 px-4">'+(q.released?'Pergunta liberada':'Liberar pergunta')+'</button></div></div>';
         h+='<div class="mb-4"><label class="label">Enunciado</label><textarea class="inp" rows="2" oninput="cases['+i+'].qs['+qi+'].text=this.value" placeholder="Descreva a pergunta...">'+esc(q.text)+'</textarea></div>';
         /* Alternativas */
         h+='<div class="mb-4"><label class="label">Alternativas</label><div class="space-y-3">';
@@ -505,6 +580,25 @@ function renABody(){
     }
     h+='</div></div></div>';
     $('aBody').innerHTML=h;
+}
+
+async function persistCaseReleaseState(){
+    if(!await dbSaveCases(cases)){toast('Erro ao salvar liberacao: '+(lastDbError||'verifique conexao'),'err');return false}
+    return true;
+}
+
+async function toggleCaseRelease(ci){
+    cases[ci].released=!cases[ci].released;
+    if(!cases[ci].released){cases[ci].qs.forEach(function(q){q.released=false})}
+    if(await persistCaseReleaseState())toast(cases[ci].released?'Caso liberado para participantes':'Caso bloqueado para participantes','ok');
+    renATabs();renABody();
+}
+
+async function toggleQuestionRelease(ci,qi){
+    if(!cases[ci].released){toast('Libere o caso antes de liberar perguntas','warn');return}
+    cases[ci].qs[qi].released=!cases[ci].qs[qi].released;
+    if(await persistCaseReleaseState())toast(cases[ci].qs[qi].released?'Pergunta liberada':'Pergunta bloqueada','ok');
+    renABody();
 }
 
 /* ====== ADMIN: VISÃO DE ESTATÍSTICAS ====== */
@@ -836,27 +930,37 @@ async function resetAll(){
 /* ====== DASHBOARD PARTICIPANTE ====== */
 async function renDash(){
     $('dTitle').textContent=pName;
-    var avail=getConfiguredCases();var total=0,ansCnt=0;
-    avail.forEach(function(ci){cases[ci].qs.forEach(function(q){if(q.text.trim())total++})});
-    avail.forEach(function(ci){cases[ci].qs.forEach(function(q,qi){if(q.text.trim()&&pAns[ci]&&pAns[ci][qi])ansCnt++})});
+    var avail=getReleasedCases();var total=getParticipantTotalQuestions(),ansCnt=getParticipantAnsweredCount(pAns);
     $('dSub').textContent=avail.length+' caso(s) — '+ansCnt+'/'+total+' respondidas';
-    if(!avail.length){$('dBody').innerHTML='<div class="card text-center py-16"><h3 class="text-xl font-bold mb-2">Nenhum caso disponível</h3><p class="text-sm" style="color:var(--muted)">Aguarde o administrador configurar.</p></div>';return}
+    if(!avail.length){$('dBody').innerHTML='<div class="card text-center py-16"><h3 class="text-xl font-bold mb-2">Nenhum caso disponível</h3><p class="text-sm" style="color:var(--muted)">'+(getConfiguredCases().length?'Aguarde o administrador liberar acesso aos casos.':'Aguarde o administrador configurar os casos.')+'</p></div>';return}
     var allPresenters=await dbLoadAllPresenters();
-    var h='<div class="case-grid">';
+    var allDefs=await dbLoadAllDefenders();
+    var assignments=getParticipantDefenderAssignments(allDefs);
+    var h='';
+    if(assignments.length){
+        h+='<div class="card mb-6" style="padding:20px;background:var(--acc-l);border:1px solid rgba(230,81,0,.2)"><p class="text-xs font-bold mb-2" style="color:var(--acc);text-transform:uppercase;letter-spacing:.8px">Defesa atribuida</p><div class="space-y-2">';
+        assignments.forEach(function(item){
+            h+='<p class="text-sm font-semibold" style="color:var(--acc)">Caso '+(item.ci+1)+', pergunta '+(item.qi+1)+': alternativa '+item.label+'</p>';
+        });
+        h+='</div></div>';
+    }
+    h+='<div class="case-grid">';
     avail.forEach(function(ci,idx){
         var c=cases[ci];var qC=0,aC=0;
-        c.qs.forEach(function(q){if(q.text.trim())qC++});
-        c.qs.forEach(function(q,qi){if(q.text.trim()&&pAns[ci]&&pAns[ci][qi])aC++});
+        c.qs.forEach(function(q){if(q.released&&q.text.trim())qC++});
+        c.qs.forEach(function(q,qi){if(q.released&&q.text.trim()&&pAns[ci]&&pAns[ci][qi])aC++});
         var st='pend',sT='Não iniciado',sC='var(--muted)';
         if(aC>0&&aC<qC){st='prog';sT='Em andamento';sC='var(--warn)'}
         else if(aC>=qC&&qC>0){st='done';sT='Concluído';sC='var(--ok)'}
         var pct=qC>0?Math.round((aC/qC)*100):0;
         var presenter=allPresenters[ci];
+        var caseAssignments=getCaseAssignments(assignments,ci);
         h+='<div class="card cursor-pointer" onclick="openC('+ci+')" style="animation:su .4s ease both;animation-delay:'+(idx*70)+'ms">';
         h+='<div class="flex items-center justify-between mb-3"><span class="badge" style="background:var(--pri-l);color:var(--pri)">CASO '+(ci+1)+'</span><div class="flex items-center gap-2"><span class="dot '+st+'"></span><span class="text-xs" style="color:'+sC+'">'+sT+'</span></div></div>';
         h+='<h3 class="font-bold text-sm mb-2 leading-snug" style="font-family:Playfair Display,serif">'+esc(c.title)+'</h3>';
         if(c.img)h+='<img src="'+c.img+'" class="w-full h-28 object-cover rounded-lg mb-3" alt="">';
         if(presenter&&presenter.selectedAt)h+='<p class="text-xs mb-2" style="color:var(--acc)">Apresentador: <span style="font-weight:700">'+esc(presenter.name)+'</span></p>';
+        if(caseAssignments.length)h+='<p class="text-xs mb-2" style="color:var(--acc);font-weight:700">Voce foi escolhido(a) como defensor em '+caseAssignments.map(function(item){return'P'+(item.qi+1)+' ('+item.label+')'}).join(', ')+'</p>';
         h+='<div class="flex items-center justify-between text-xs mb-2"><span style="color:var(--muted)">'+aC+'/'+qC+' perguntas</span><span style="color:'+sC+'">'+pct+'%</span></div>';
         h+='<div class="pbar"><div class="pfill" style="width:'+pct+'%"></div></div>';
         h+='</div>';
@@ -867,6 +971,7 @@ async function renDash(){
 
 /* ====== ABRIR CASO (PARTICIPANTE) ====== */
 function openC(ci){
+    if(!cases[ci]||!cases[ci].released){toast('Este caso ainda nao foi liberado pelo administrador','warn');return}
     vCase=ci;renCase(ci);show('sCase');
     $('cLabel').textContent='CASO '+(ci+1);
 }
@@ -874,6 +979,8 @@ function openC(ci){
 async function renCase(ci){
     var c=cases[ci];
     var allPresenters=await dbLoadAllPresenters();
+    var allDefs=await dbLoadAllDefenders();
+    var assignments=getQuestionAssignments(getParticipantDefenderAssignments(allDefs),ci,-1);
     var presenter=allPresenters[ci];
     var h='<div class="space-y-6">';
     /* Info do caso */
@@ -885,13 +992,17 @@ async function renCase(ci){
     if(c.desc)h+='<p class="text-sm leading-relaxed" style="color:var(--txt2);white-space:pre-line">'+esc(c.desc)+'</p>';
     h+='</div>';
     /* Questões */
+    var hasReleasedQuestion=false;
     c.qs.forEach(function(q,qi){
-        if(!q.text||!q.text.trim())return;
+        if(!q.released||!q.text||!q.text.trim())return;
+        hasReleasedQuestion=true;
         var myChoices=(pAns[ci]&&Array.isArray(pAns[ci][qi]))?pAns[ci][qi]:[];
+        var qAssignments=getQuestionAssignments(getParticipantDefenderAssignments(allDefs),ci,qi);
         h+='<div class="card" style="padding:20px">';
         h+='<p class="text-xs font-bold tracking-wide mb-2" style="color:var(--pri)">PERGUNTA '+(qi+1)+'</p>';
         h+='<p class="text-base font-semibold mb-1 leading-snug">'+esc(q.text)+'</p>';
         h+='<p class="text-xs mb-4" style="color:var(--muted)">Selecione uma ou mais alternativas</p>';
+        if(qAssignments.length)h+='<div class="mb-4 p-3 rounded-lg text-sm font-semibold" style="background:var(--acc-l);border:1px solid rgba(230,81,0,.2);color:var(--acc)">Voce foi escolhido(a) para defender a alternativa '+qAssignments.map(function(item){return item.label}).join(', ')+' nesta pergunta.</div>';
         /* Opções */
         q.options.forEach(function(o,oi){
             var l=o.label;
@@ -904,6 +1015,7 @@ async function renCase(ci){
         });
         h+='</div>';
     });
+    if(!hasReleasedQuestion)h+='<div class="card text-center py-12"><h3 class="text-xl font-bold mb-2">Perguntas indisponiveis no momento</h3><p class="text-sm" style="color:var(--muted)">Aguarde o administrador liberar as proximas perguntas deste caso.</p></div>';
     h+='<div class="text-center"><button type="button" onclick="finishCase('+ci+')" class="btn-p">Enviar Respostas e Voltar aos Casos</button></div>';
     h+='</div>';
     $('cBody').innerHTML=h;
@@ -928,7 +1040,8 @@ async function finishCase(ci){
 
 /* ====== SUBMETER RESPOSTAS ====== */
 async function submitAns(){
-    var total=getTotalQuestions();var ansCnt=getAnsweredCount(pAns);
+    var total=getParticipantTotalQuestions();var ansCnt=getParticipantAnsweredCount(pAns);
+    if(!total){toast('Nenhuma pergunta foi liberada ainda','warn');return}
     if(ansCnt<total){toast('Responda todas as '+total+' questões primeiro ('+ansCnt+'/'+total+')','warn');return}
     await dbSaveAnswers(pName,pAns);
     showResults();
@@ -936,6 +1049,11 @@ async function submitAns(){
 
 /* ====== RESULTADOS ====== */
 async function showResults(){
+    await renderResults();
+    show('sRes');
+}
+
+async function renderResults(){
     var allDefs=await dbLoadAllDefenders();
     var sc=participantProgress(pAns);
     var h='<div class="space-y-6">';
@@ -947,17 +1065,17 @@ async function showResults(){
     h+='</div>';
     /* Detalhamento por questão */
     var allPresenters=await dbLoadAllPresenters();
-    getConfiguredCases().forEach(function(ci){
+    getReleasedCases().forEach(function(ci){
         var c=cases[ci];
         var presenter=allPresenters[ci];
         h+='<div class="card" style="padding:20px"><h4 class="text-base font-bold mb-1" style="color:var(--pri)">Caso '+(ci+1)+': '+esc(c.title)+'</h4>';
         if(presenter&&presenter.selectedAt)h+='<p class="text-sm mb-3" style="color:var(--acc)">Apresentador: <span style="font-weight:700">'+esc(presenter.name)+'</span></p>';
         c.qs.forEach(function(q,qi){
-            if(!q.text||!q.text.trim())return;
+            if(!q.released||!q.text||!q.text.trim())return;
             var myChoices=(pAns[ci]&&Array.isArray(pAns[ci][qi]))?pAns[ci][qi]:[];
             var qKey=ci+'_'+qi;
             var def=allDefs[qKey]||null;
-            var myKey=btoa(unescape(encodeURIComponent(pName.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+            var myKey=getParticipantKey(pName);
             var defendingLabels=myChoices.filter(function(l){return def&&def[l]&&def[l].key===myKey});
 
             h+='<div class="p-4 rounded-lg mb-3" style="background:var(--bg);border:1px solid var(--bdr-l)">';
@@ -994,7 +1112,7 @@ async function showResults(){
     });
     h+='<div class="text-center"><button type="button" onclick="goDash()" class="btn-p">Voltar ao Início</button></div>';
     h+='</div>';
-    $('rBody').innerHTML=h;show('sRes');
+    $('rBody').innerHTML=h;
 }
 
 /* ====== MODAL DEFENSORES (PARTICIPANTE) ====== */
@@ -1002,13 +1120,13 @@ async function showDefModal(){
     var allDefs=await dbLoadAllDefenders();
     var keys=Object.keys(allDefs);
     if(!keys.length){$('defBody').innerHTML='<p class="text-sm" style="color:var(--muted)">Nenhum sorteio de defensores realizado ainda. O administrador precisa sortear os defensores primeiro.</p>';$('modalDef').style.display='flex';return}
-    var myKey=btoa(unescape(encodeURIComponent(pName.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    var myKey=getParticipantKey(pName);
     var h='<div class="space-y-6">';
-    getConfiguredCases().forEach(function(ci){
+    getReleasedCases().forEach(function(ci){
         var c=cases[ci];
         var hasAny=false;
         c.qs.forEach(function(q,qi){
-            if(!q.text||!q.text.trim())return;
+            if(!q.released||!q.text||!q.text.trim())return;
             var qKey=ci+'_'+qi;
             var def=allDefs[qKey];if(!def||!def.selectedAt)return;
             hasAny=true;
@@ -1036,6 +1154,30 @@ async function showDefModal(){
     $('defBody').innerHTML=h;$('modalDef').style.display='flex';
 }
 function closeDefModal(){$('modalDef').style.display='none'}
+
+function stopParticipantSync(){if(participantSyncId){clearInterval(participantSyncId);participantSyncId=null}}
+
+function startParticipantSync(){
+    if(!useRemote||!pName)return;
+    if(!participantSyncId)participantSyncId=setInterval(function(){refreshParticipantState(false)},4000);
+    refreshParticipantState(true);
+}
+
+async function refreshParticipantState(silent){
+    if(participantSyncBusy||!useRemote||!pName)return;
+    participantSyncBusy=true;
+    try{
+        var remoteCases=await dbLoadCases();
+        if(Array.isArray(remoteCases)){cases=remoteCases;normalizeCases()}
+        var allDefs=await dbLoadAllDefenders();
+        syncParticipantDefenderNotices(allDefs,!!silent);
+        var active=document.querySelector('.screen.active');
+        if(!active)return;
+        if(active.id==='sDash')await renDash();
+        else if(active.id==='sCase'&&vCase!==-1)await renCase(vCase);
+        else if(active.id==='sRes')await renderResults();
+    }finally{participantSyncBusy=false}
+}
 
 /* ====== QR CODE PARTICIPANTE ====== */
 function setupQrParticipante(){
