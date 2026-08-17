@@ -416,6 +416,41 @@ function computeQStats(ci,qi,allAns){
     return stats;
 }
 
+function renderQuestionPieChart(stats){
+    var labels=Object.keys(stats).filter(function(k){return k!=='total'});
+    var total=labels.reduce(function(sum,l){return sum + (stats[l].count||0)},0);
+    if(!total){
+        return '<div class="flex items-center justify-center rounded-lg border border-dashed" style="border-color:var(--bdr-l);background:var(--bg);min-height:150px"><div class="text-center"><p class="text-sm font-semibold">Sem respostas</p><p class="text-xs" style="color:var(--muted)">Ainda não há votos registrados.</p></div></div>';
+    }
+    var radius=36;
+    var circumference=2*Math.PI*radius;
+    var currentOffset=0;
+    var segments='';
+    labels.forEach(function(l){
+        var value=stats[l].count||0;
+        var ratio=value/total;
+        var dash=circumference*ratio;
+        var color=optColor(l);
+        segments+='<circle cx="50" cy="50" r="'+radius+'" fill="none" stroke="'+color+'" stroke-width="18" stroke-dasharray="'+dash+' '+(circumference-dash)+'" stroke-dashoffset="'+(-currentOffset)+'" transform="rotate(-90 50 50)" stroke-linecap="round"></circle>';
+        currentOffset+=dash;
+    });
+    var h='<div class="grid gap-4 md:grid-cols-[150px_1fr] items-center">';
+    h+='<div class="relative mx-auto" style="width:120px;height:120px"><svg viewBox="0 0 100 100" width="120" height="120" aria-label="Gráfico de pizza">';
+    h+='<circle cx="50" cy="50" r="'+radius+'" fill="none" stroke="var(--bdr-l)" stroke-width="18"></circle>';
+    h+=segments;
+    h+='</svg><div class="absolute inset-0 flex items-center justify-center text-center"><div><div class="text-base font-bold">'+total+'</div><div class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">respostas</div></div></div></div>';
+    h+='<div class="space-y-2">';
+    labels.forEach(function(l){
+        var s=stats[l];
+        h+='<div class="flex items-center justify-between gap-3 text-xs">';
+        h+='<div class="flex items-center gap-2"><span class="inline-block rounded-full" style="width:10px;height:10px;background:'+optColor(l)+'"></span><span class="font-semibold" style="color:var(--txt2)">Alternativa '+l+'</span></div>';
+        h+='<span style="color:var(--muted)">'+s.count+' · '+s.pct+'%</span>';
+        h+='</div>';
+    });
+    h+='</div></div>';
+    return h;
+}
+
 function renderStatBars(stats,myChoices){
     myChoices=myChoices||[];
     var labels=Object.keys(stats).filter(function(k){return k!=='total'});
@@ -591,14 +626,14 @@ async function toggleCaseRelease(ci){
     cases[ci].released=!cases[ci].released;
     if(!cases[ci].released){cases[ci].qs.forEach(function(q){q.released=false})}
     if(await persistCaseReleaseState())toast(cases[ci].released?'Caso liberado para participantes':'Caso bloqueado para participantes','ok');
-    renATabs();renABody();
+    renATabs();renABody();renAdminSummary();
 }
 
 async function toggleQuestionRelease(ci,qi){
     if(!cases[ci].released){toast('Libere o caso antes de liberar perguntas','warn');return}
     cases[ci].qs[qi].released=!cases[ci].qs[qi].released;
     if(await persistCaseReleaseState())toast(cases[ci].qs[qi].released?'Pergunta liberada':'Pergunta bloqueada','ok');
-    renABody();
+    renABody();renAdminSummary();
 }
 
 /* ====== ADMIN: VISÃO DE ESTATÍSTICAS ====== */
@@ -609,11 +644,9 @@ async function renStatsView(){
     var totalP=Object.keys(allAns).length;
 
     var h='<div class="space-y-6">';
-
     if(!caseIdx.length){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum caso configurado.</div>';$('aBody').innerHTML=h;return}
     if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante respondeu ainda.</div>';$('aBody').innerHTML=h;return}
 
-    /* Filtro por caso */
     if(caseIdx.indexOf(statsCaseFilter)===-1)statsCaseFilter=caseIdx[0];
     h+='<div class="flex flex-wrap gap-2">';
     caseIdx.forEach(function(ci){
@@ -622,20 +655,13 @@ async function renStatsView(){
     h+='</div>';
 
     var visibleCaseIdx=caseIdx.filter(function(ci){return ci===statsCaseFilter});
+    var releaseCount=cases.filter(function(c){return c&&c.released}).length;
+    var questionCount=cases.reduce(function(sum,c){return sum + (Array.isArray(c.qs)?c.qs.filter(function(q){return q&&q.text&&q.text.trim()}).length:0)},0);
+    var releasedQuestionCount=cases.reduce(function(sum,c){return sum + (Array.isArray(c.qs)?c.qs.filter(function(q){return q&&q.text&&q.text.trim()&&q.released}).length:0)},0);
 
-    /* Lista de participantes (usada tamb\u00e9m para escolher apresentador) */
-    var partList=[];
-    Object.keys(allAns).forEach(function(key){
-        var item=allAns[key];
-        var sc=participantProgress(item.answers_json);
-        partList.push({key:key,name:item.participant_name||'Anônimo',score:sc,updatedAt:item.updated_at||'',answers:item.answers_json});
-    });
-    partList.sort(function(a,b){return(b.score.pct-a.score.pct)||(new Date(b.updatedAt||0)-new Date(a.updatedAt||0))});
-
-    /* Por caso e questão */
     visibleCaseIdx.forEach(function(ci){
         var c=cases[ci];
-        h+='<div class="card" style="padding:20px"><div class="flex flex-wrap items-center justify-between gap-2 mb-1"><h4 class="text-lg font-bold" style="color:var(--pri)">Caso '+(ci+1)+'</h4><button type="button" onclick="doSelectDefendersCase('+ci+',this)" class="btn-s text-xs py-2 px-3">Sortear Defensores do Caso</button></div><p class="text-sm mb-4" style="color:var(--txt2)">'+esc(c.title)+'</p>';
+        h+='<div class="card" style="padding:20px"><div class="flex flex-wrap items-center justify-between gap-2 mb-4"><div><p class="text-[10px] uppercase tracking-wide" style="color:var(--pri)">Caso '+(ci+1)+'</p><h4 class="text-lg font-bold">'+esc(c.title)+'</h4></div><button type="button" onclick="doSelectDefendersCase('+ci+',this)" class="btn-s text-xs py-2 px-3">Sortear Defensores</button></div>';
         var hasQ=false;
         c.qs.forEach(function(q,qi){
             if(!q.text||!q.text.trim())return;
@@ -643,93 +669,41 @@ async function renStatsView(){
             var stats=computeQStats(ci,qi,allAns);
             var qKey=ci+'_'+qi;
             var def=allDefs[qKey]||null;
-
             h+='<div class="p-4 rounded-lg mb-4" style="background:var(--bg);border:1px solid var(--bdr-l)">';
-            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-3">';
-            h+='<p class="text-sm font-semibold">Pergunta '+(qi+1)+': '+esc(q.text)+'</p>';
-            h+='</div>';
-            /* Barras */
-            h+=renderStatBars(stats,null);
-            /* Seleção manual de defensor por alternativa */
-            h+='<div class="mt-3 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)">';
-            h+='<p class="text-xs font-bold mb-2" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Escolher defensor da pergunta</p>';
-            q.options.forEach(function(o){
-                var l=o.label;
-                var candByKey={};
-                var cand=[];
-                if(stats[l]&&stats[l].people&&stats[l].people.length){
-                    stats[l].people.forEach(function(p){if(!candByKey[p.key]){candByKey[p.key]=1;cand.push(p)}});
-                }
-                var curr=def&&def[l]?def[l]:null;
-                h+='<div class="flex flex-wrap items-center gap-2 mb-2">';
-                h+='<span class="text-xs font-bold" style="color:'+optColor(l)+';width:16px">'+l+'</span>';
-                h+='<select id="defSel_'+ci+'_'+qi+'_'+l+'" class="inp" style="max-width:280px;width:auto;display:inline-block">';
-                h+='<option value="">'+(cand.length?'Selecionar defensor...':'Sem respondentes nesta alternativa')+'</option>';
-                cand.forEach(function(p){h+='<option value="'+esc(p.key)+'">'+esc(p.name)+'</option>'});
-                h+='</select>';
-                h+='<button type="button" onclick="doSetDefender('+ci+','+qi+',\''+l+'\')" class="btn-s text-xs py-1 px-3">Definir</button>';
-                if(curr&&curr.name)h+='<span class="badge" style="background:'+optColorL(l)+';color:'+optColor(l)+'">'+esc(curr.name)+'</span>';
-                h+='</div>';
-            });
-            h+='</div>';
-            /* Detalhamento por pessoa */
-            h+='<details class="mt-3"><summary class="text-xs cursor-pointer font-semibold" style="color:var(--pri)">Ver quem escolheu o quê</summary><div class="mt-2 space-y-1">';
-            q.options.forEach(function(o){
-                var l=o.label;
-                if(!stats[l]||!stats[l].people.length)return;
-                h+='<div class="flex items-center gap-2 text-xs py-1"><span class="font-bold" style="color:'+optColor(l)+';width:16px">'+l+')</span><span class="text-xs" style="color:var(--muted)">'+stats[l].people.map(function(p){return esc(p.name)}).join(', ')+'</span></div>';
-            });
-            h+='</div></details>';
-            /* Explicação */
+            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><p class="text-sm font-semibold">Pergunta '+(qi+1)+': '+esc(q.text)+'</p><span class="badge" style="background:'+(q.released?'var(--pri-l)':'var(--bg2)')+';color:'+(q.released?'var(--pri)':'var(--muted)')+'">'+(q.released?'Liberada':'Bloqueada')+'</span></div>';
+            h+=renderQuestionPieChart(stats);
             if(q.expl&&q.expl.trim())h+='<div class="mt-3 p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15)">'+esc(q.expl)+'</div>';
-            /* Sortear defensores */
-            h+='<div class="mt-4 flex flex-wrap items-center gap-3">';
-            h+='<button type="button" onclick="doSelectDefenders('+ci+','+qi+',this)" class="btn-p text-xs py-2 px-4">Sortear Defensores</button>';
-            if(def&&def.selectedAt)h+='<span class="text-xs" style="color:var(--muted)">Sorteado em '+fmtDate(def.selectedAt)+'</span>';
-            h+='</div>';
-            /* Defensores sorteados */
-            h+='<div id="def_'+qKey+'" class="mt-3">';
             if(def&&def.selectedAt){
-                h+='<p class="text-xs font-bold mb-2" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Defensores Sorteados</p>';
-                h+='<div class="flex flex-wrap gap-3">';
+                h+='<div class="mt-3 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Defensores sorteados</p><div class="flex flex-wrap gap-3 mt-2">';
                 q.options.forEach(function(o,oi){
-                    var l=o.label;
-                    var d=def[l];
-                    h+='<div class="def-card" style="background:'+optColorL(l)+';border:2px solid '+optColor(l)+';animation-delay:'+((oi%4)*100)+'ms">';
-                    h+='<p class="text-lg font-bold" style="color:'+optColor(l)+'">'+l+'</p>';
-                    h+='<p class="text-sm font-semibold mt-1">'+(d?esc(d.name):'<span style="color:var(--muted);font-size:11px">Sem resposta</span>')+'</p>';
-                    h+='</div>';
+                    var l=o.label;var d=def[l];
+                    h+='<div class="def-card" style="background:'+optColorL(l)+';border:2px solid '+optColor(l)+';animation-delay:'+((oi%4)*100)+'ms"><p class="text-lg font-bold" style="color:'+optColor(l)+'">'+l+'</p><p class="text-sm font-semibold mt-1">'+(d?esc(d.name):'<span style="color:var(--muted);font-size:11px">Sem resposta</span>')+'</p></div>';
                 });
-                h+='</div>';
+                h+='</div></div>';
             }
-            h+='</div>';
             h+='</div>';
         });
         if(!hasQ)h+='<p class="text-sm" style="color:var(--muted)">Sem perguntas ativas.</p>';
         h+='</div>';
     });
 
-    /* Lista de participantes */
-    h+='<div class="card" style="padding:20px"><h4 class="text-lg font-bold mb-4">Todos os Participantes</h4>';
-    if(!partList.length){h+='<p class="text-sm" style="color:var(--muted)">Nenhum participante.</p>'}
-    else{
-        h+='<div style="overflow:auto;border:1px solid var(--bdr-l);border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:500px">';
-        h+='<thead><tr style="background:var(--bg)"><th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Participante</th><th style="text-align:center;padding:10px;border-bottom:1px solid var(--bdr-l)">Respondidas</th><th style="text-align:center;padding:10px;border-bottom:1px solid var(--bdr-l)">%</th><th style="text-align:left;padding:10px;border-bottom:1px solid var(--bdr-l)">Atualizado</th><th style="text-align:center;padding:10px;border-bottom:1px solid var(--bdr-l)">Ações</th></tr></thead><tbody>';
-        partList.forEach(function(p){
-            var t=p.score.pct>=70?'var(--ok)':p.score.pct>=40?'var(--warn)':'var(--err)';
-            h+='<tr><td style="padding:10px;border-bottom:1px solid var(--bdr-l);font-weight:600">'+esc(p.name)+'</td>';
-            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l);text-align:center">'+p.score.answered+'/'+p.score.total+'</td>';
-            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l);text-align:center"><span class="badge" style="background:'+t+'18;color:'+t+'">'+p.score.pct+'%</span></td>';
-            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l);color:var(--muted);font-size:12px">'+fmtDate(p.updatedAt)+'</td>';
-            h+='<td style="padding:10px;border-bottom:1px solid var(--bdr-l);text-align:center"><button type="button" onclick="viewPart(\''+esc(p.key)+'\')" class="btn-s text-xs py-1 px-2">Ver</button> <button type="button" onclick="delPart(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">Apagar</button></td>';
-            h+='</tr>';
-        });
-        h+='</tbody></table></div>';
-    }
+    h+='<div class="card" style="padding:20px"><div class="mb-4"><p class="text-xs font-bold tracking-wide" style="color:var(--pri);text-transform:uppercase;letter-spacing:.8px">Painel de controle</p><h3 class="text-xl font-bold mt-1">Liberar casos e perguntas</h3></div>';
+    h+='<div class="grid grid-cols-2 gap-3 mb-4">';
+    h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Casos</p><p class="text-2xl font-bold mt-1">'+releaseCount+'/'+caseIdx.length+'</p></div>';
+    h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Perguntas</p><p class="text-2xl font-bold mt-1">'+releasedQuestionCount+'/'+questionCount+'</p></div>';
+    h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Participantes</p><p class="text-2xl font-bold mt-1">'+totalP+'</p></div>';
+    h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Status</p><p class="text-2xl font-bold mt-1">'+(releaseCount===0?'Bloqueado':'Aberto')+'</p></div>';
     h+='</div>';
-
-    /* Botão limpar defensores */
-    h+='<div class="text-center"><button type="button" onclick="clearAllDef()" class="btn-d text-xs">Limpar Todos os Sorteios de Defensores</button></div>';
+    caseIdx.forEach(function(ci){
+        var c=cases[ci];
+        h+='<div class="rounded-lg p-3 mb-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex items-center justify-between gap-2 mb-2"><div><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Caso '+(ci+1)+'</p><p class="text-sm font-semibold">'+esc(c.title||'Sem título')+'</p></div><button type="button" onclick="toggleCaseRelease('+ci+')" class="'+(c.released?'btn-p':'btn-s')+' text-[11px] py-1.5 px-3">'+(c.released?'Liberado':'Bloqueado')+'</button></div>';
+        c.qs.forEach(function(q,qi){
+            if(!q||!q.text||!q.text.trim())return;
+            h+='<div class="flex items-center justify-between gap-3 py-2 border-t" style="border-color:var(--bdr-l)"><div><p class="text-xs font-semibold">Pergunta '+(qi+1)+'</p><p class="text-[11px]" style="color:var(--muted)">'+esc(q.text.slice(0,34)+(q.text.length>34?'...':''))+'</p></div><button type="button" onclick="toggleQuestionRelease('+ci+','+qi+')" class="'+(q.released?'btn-p':'btn-s')+' text-[11px] py-1.5 px-3">'+(q.released?'Liberada':'Liberar')+'</button></div>';
+        });
+        h+='</div>';
+    });
+    h+='</div>';
     h+='</div>';
     $('aBody').innerHTML=h;
 }
@@ -852,23 +826,27 @@ async function loadAdminData(){
 function renAdminSummary(){
     var totalP=adminParticipants.length;
     var cfgCases=getConfiguredCases();
-    var activeCase=null;
-    if(aTab<cases.length&&cases[aTab]&&cases[aTab].title&&cases[aTab].title.trim())activeCase=aTab;
-    else if(cases[statsCaseFilter]&&cases[statsCaseFilter].title&&cases[statsCaseFilter].title.trim())activeCase=statsCaseFilter;
-    else if(cfgCases.length)activeCase=cfgCases[0];
-    var caseLabel=activeCase===null?'Sem caso selecionado':'Caso '+(activeCase+1);
-    var h='<div class="mb-4"><h3 class="text-lg font-bold">Participantes</h3><p class="text-xs" style="color:var(--muted)">Percentual de respostas por caso ('+caseLabel+')</p></div>';
-    if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante ainda.</div>';$('aSummary').innerHTML=h;return}
-    if(activeCase===null){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Crie e configure pelo menos um caso.</div>';$('aSummary').innerHTML=h;return}
-    h+='<div class="space-y-2">';
-    adminParticipants.forEach(function(p){
-        var sc=participantCaseProgress(p.answers,activeCase);
-        var t=sc.pct>=70?'var(--ok)':sc.pct>=40?'var(--warn)':'var(--err)';
-        h+='<div class="p-3 rounded-lg flex flex-wrap items-center justify-between gap-2" style="background:var(--bg);border:1px solid var(--bdr-l)">';
-        h+='<div><p class="font-semibold text-sm">'+esc(p.name)+'</p><p class="text-xs" style="color:var(--muted)">'+fmtDate(p.updatedAt)+'</p></div>';
-        h+='<div class="flex items-center gap-3"><span class="text-xs" style="color:'+t+';font-weight:600">'+sc.pct+'%</span><div class="pbar" style="width:100px"><div class="pfill" style="width:'+sc.pct+'%"></div></div>';
-        h+='<button type="button" onclick="viewPart(\''+esc(p.key)+'\')" class="btn-s text-xs py-1 px-2">Ver</button>';
-        h+='<button type="button" onclick="delPart(\''+esc(p.key)+'\')" class="btn-d text-xs py-1 px-2">X</button></div>';
+    var h='<div class="mb-4"><h3 class="text-lg font-bold">Painel de controle</h3><p class="text-xs" style="color:var(--muted)">Resumo geral das respostas por caso e pergunta</p></div>';
+    if(!cfgCases.length){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Crie e configure pelo menos um caso.</div>';$('aSummary').innerHTML=h;return}
+    var totalCases=cfgCases.length;
+    var totalQuestions=cases.reduce(function(sum,c){return sum + (Array.isArray(c.qs)?c.qs.filter(function(q){return q&&q.text&&q.text.trim()}).length:0)},0);
+    var releasedCases=cases.filter(function(c){return c&&c.released}).length;
+    var releasedQuestions=cases.reduce(function(sum,c){return sum + (Array.isArray(c.qs)?c.qs.filter(function(q){return q&&q.text&&q.text.trim()&&q.released}).length:0)},0);
+    var responseRate=totalQuestions?Math.round((releasedQuestions/totalQuestions)*100):0;
+    h+='<div class="grid grid-cols-2 gap-3 mb-4">';
+    h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Casos</p><p class="text-xl font-bold mt-1">'+releasedCases+'/'+totalCases+'</p></div>';
+    h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Perg.</p><p class="text-xl font-bold mt-1">'+releasedQuestions+'/'+totalQuestions+'</p></div>';
+    h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Respond.</p><p class="text-xl font-bold mt-1">'+totalP+'</p></div>';
+    h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Acesso</p><p class="text-xl font-bold mt-1">'+responseRate+'%</p></div>';
+    h+='</div>';
+    h+='<div class="space-y-3">';
+    cfgCases.forEach(function(ci){
+        var c=cases[ci];
+        var qTotal=c.qs.filter(function(q){return q&&q.text&&q.text.trim()}).length;
+        var qReleased=c.qs.filter(function(q){return q&&q.text&&q.text.trim()&&q.released}).length;
+        h+='<div class="p-3 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex items-center justify-between gap-2 mb-2"><p class="text-sm font-semibold">Caso '+(ci+1)+'</p><span class="badge" style="background:'+(c.released?'var(--pri-l)':'var(--bg2)')+';color:'+(c.released?'var(--pri)':'var(--muted)')+'">'+(c.released?'Aberto':'Fechado')+'</span></div>';
+        h+='<div class="flex items-center justify-between text-[11px]" style="color:var(--muted)"><span>Perguntas: '+qReleased+'/'+qTotal+'</span><span>'+Math.round((qReleased/qTotal)*100||0)+'%</span></div>';
+        h+='<div class="pbar mt-2" style="width:100%"><div class="pfill" style="width:'+(qTotal?Math.round((qReleased/qTotal)*100):0)+'%"></div></div>';
         h+='</div>';
     });
     h+='</div>';
