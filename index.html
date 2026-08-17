@@ -673,11 +673,31 @@ async function renStatsView(){
             h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><p class="text-sm font-semibold">Pergunta '+(qi+1)+': '+esc(q.text)+'</p><span class="badge" style="background:'+(q.released?'var(--pri-l)':'var(--bg2)')+';color:'+(q.released?'var(--pri)':'var(--muted)')+'">'+(q.released?'Liberada':'Bloqueada')+'</span></div>';
             h+=renderQuestionPieChart(stats);
             if(q.expl&&q.expl.trim())h+='<div class="mt-3 p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15)">'+esc(q.expl)+'</div>';
+            h+='<div class="mt-4 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)"><p class="text-xs font-bold mb-3" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Definir defensor por alternativa</p>';
+            q.options.forEach(function(o){
+                var l=o.label;
+                var candByKey={};
+                var cand=[];
+                if(stats[l]&&stats[l].people&&stats[l].people.length){
+                    stats[l].people.forEach(function(p){if(!candByKey[p.key]){candByKey[p.key]=1;cand.push(p)}});
+                }
+                var curr=def&&def[l]?def[l]:null;
+                h+='<div class="flex flex-wrap items-center gap-2 mb-3">';
+                h+='<span class="text-xs font-bold" style="color:'+optColor(l)+';width:20px">'+l+')</span>';
+                h+='<select id="defSel_'+ci+'_'+qi+'_'+l+'" class="inp" style="max-width:280px;width:auto;display:inline-block;flex:1;min-width:160px">';
+                h+='<option value="">'+(cand.length?'Selecionar defensor...':'Nenhum respondente')+'</option>';
+                cand.forEach(function(p){h+='<option value="'+esc(p.key)+'">'+esc(p.name)+'</option>'});
+                h+='</select>';
+                h+='<button type="button" onclick="doSetDefender('+ci+','+qi+',\''+l+'\')" class="btn-s text-xs py-1.5 px-3">Definir</button>';
+                if(curr&&curr.name)h+='<span class="badge" style="background:'+optColorL(l)+';color:'+optColor(l)+';font-size:11px">'+esc(curr.name)+'</span>';
+                h+='</div>';
+            });
+            h+='</div>';
             if(def&&def.selectedAt){
-                h+='<div class="mt-3 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Defensores sorteados</p><div class="flex flex-wrap gap-3 mt-2">';
+                h+='<div class="mt-3 p-3 rounded-lg" style="background:#fafafa;border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide mb-2" style="color:var(--pri)">Defensores atribuídos</p><div class="flex flex-wrap gap-3">';
                 q.options.forEach(function(o,oi){
                     var l=o.label;var d=def[l];
-                    h+='<div class="def-card" style="background:'+optColorL(l)+';border:2px solid '+optColor(l)+';animation-delay:'+((oi%4)*100)+'ms"><p class="text-lg font-bold" style="color:'+optColor(l)+'">'+l+'</p><p class="text-sm font-semibold mt-1">'+(d?esc(d.name):'<span style="color:var(--muted);font-size:11px">Sem resposta</span>')+'</p></div>';
+                    h+='<div class="def-card" style="background:'+optColorL(l)+';border:2px solid '+optColor(l)+';animation-delay:'+((oi%4)*100)+'ms"><p class="text-lg font-bold" style="color:'+optColor(l)+'">'+l+'</p><p class="text-sm font-semibold mt-1">'+(d?esc(d.name):'<span style="color:var(--muted);font-size:11px">—</span>')+'</p></div>';
                 });
                 h+='</div></div>';
             }
