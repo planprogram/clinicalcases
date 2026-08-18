@@ -73,6 +73,18 @@
     </div>
 </div>
 
+<!-- MODAL SENHA ESTATÍSTICAS -->
+<div id="modalStatsPass" class="modal-bg" style="display:none" onclick="if(event.target===this)closeStatsPass()">
+    <div class="modal-box text-center">
+        <div class="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center text-xl font-bold" style="background:var(--pri-l);color:var(--pri);font-family:Playfair Display,serif">S</div>
+        <h3 class="text-xl font-bold mb-1">Estatísticas restritas</h3>
+        <p class="text-sm mb-5" style="color:var(--muted)">Informe a senha para acessar os resultados</p>
+        <input id="statsPassIn" type="password" class="inp text-center text-lg mb-4" style="letter-spacing:4px" placeholder="Senha" onkeydown="if(event.key==='Enter')chkStatsPass()">
+        <button type="button" onclick="chkStatsPass()" class="btn-p w-full mb-3">Entrar</button>
+        <button type="button" onclick="closeStatsPass()" class="btn-s w-full text-sm">Cancelar</button>
+    </div>
+</div>
+
 <!-- MODAL RESPOSTAS PARTICIPANTE -->
 <div id="modalPResp" class="modal-bg" style="display:none" onclick="if(event.target===this)closePResp()">
     <div class="modal-box" style="max-width:900px;max-height:88vh;overflow-y:auto;text-align:left;padding:24px">
@@ -92,6 +104,20 @@
             <button type="button" onclick="closeDefModal()" class="btn-s text-xs py-1 px-3">Fechar</button>
         </div>
         <div id="defBody"></div>
+    </div>
+</div>
+
+<!-- ESTATÍSTICAS PÚBLICAS -->
+<div id="sPublicStats" class="screen">
+    <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
+        <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+            <button type="button" onclick="goHome()" class="btn-s text-xs py-2 px-3">← Voltar</button>
+            <span class="text-sm font-semibold" style="color:var(--pri);font-family:Playfair Display,serif">Estatísticas dos Casos</span>
+            <button type="button" onclick="openPublicStats()" class="btn-s text-xs py-2 px-3">Atualizar</button>
+        </div>
+    </header>
+    <div class="max-w-6xl mx-auto px-4 md:px-6 py-8">
+        <div id="publicStatsBody"></div>
     </div>
 </div>
 
@@ -118,6 +144,9 @@
                     <span class="text-xs font-semibold tracking-wide" style="color:var(--acc)">ACESSAR →</span>
                 </div>
             </div>
+            <div class="text-center mt-8" style="animation:su .8s ease">
+                <button type="button" onclick="openPublicStats()" class="btn-s px-6 py-3">Ver estatísticas</button>
+            </div>
             <div class="card text-center mt-10 py-6 px-6" style="max-width:220px;animation:su .8s ease">
                 <p class="text-xs font-bold mb-3" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Acesso rápido</p>
                 <img id="qrParticipante" src="" alt="QR Code de acesso do participante" width="150" height="150" style="margin:0 auto;border-radius:6px">
@@ -137,8 +166,9 @@
                 <div class="sep"></div>
                 <span class="text-sm font-semibold" style="color:var(--pri);font-family:Playfair Display,serif">Painel Administrativo</span>
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 flex-wrap">
                 <button type="button" onclick="loadAdminData()" class="btn-s text-xs py-2 px-3">Atualizar</button>
+                <button type="button" onclick="clearAllDef()" class="btn-s text-xs py-2 px-3">Limpar defensores</button>
                 <button type="button" onclick="saveAll()" class="btn-p text-xs py-2 px-5">Salvar Casos</button>
             </div>
         </div>
@@ -211,12 +241,12 @@
 <script>
 /* ====== ESTADO GLOBAL ====== */
 var cases=[],aTab=0,pName='',pAns={},vCase=-1;
-var MAX_CASES=20,MIN_OPT=2,MAX_OPT=8,PASS='medartis@2026';
+var MAX_CASES=20,MIN_OPT=2,MAX_OPT=8,PASS='medartis@2026',STATS_PASS='medartis@2026';
 var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
 var FB_DB_TOKEN='';
 var useRemote=false;
 var adminParticipants=[],adminByKey={};
-var statsCaseFilter=0;
+var statsCaseFilter=0,statsUnlocked=false;
 var saveTimer=null,lastDbError='';
 var participantSyncId=null,participantSyncBusy=false;
 var participantDefenderState={};
@@ -871,6 +901,95 @@ function renAdminSummary(){
     });
     h+='</div>';
     $('aSummary').innerHTML=h;
+}
+
+var publicStatsExpanded={};
+
+function openStatsPass(){
+    $('modalStatsPass').style.display='flex';
+    $('statsPassIn').value='';
+    setTimeout(function(){$('statsPassIn').focus()},150);
+}
+function closeStatsPass(){
+    $('modalStatsPass').style.display='none';
+}
+function chkStatsPass(){
+    if($('statsPassIn').value===STATS_PASS){
+        closeStatsPass();
+        statsUnlocked=true;
+        renderPublicStats();
+        show('sPublicStats');
+    } else {
+        toast('Senha incorreta','err');
+        $('statsPassIn').value='';
+        $('statsPassIn').focus();
+    }
+}
+
+async function openPublicStats(){
+    if(!statsUnlocked){
+        openStatsPass();
+        return;
+    }
+    await renderPublicStats();
+    show('sPublicStats');
+}
+
+async function togglePublicNames(ci,qi){
+    var key=ci+'_'+qi;
+    publicStatsExpanded[key]=!publicStatsExpanded[key];
+    await renderPublicStats();
+}
+
+async function renderPublicStats(){
+    var allAns=await dbLoadAllAnswers();
+    var caseIdx=getConfiguredCases();
+    var h='<div class="space-y-6">';
+    if(!caseIdx.length){h+='<div class="card text-center py-12"><h3 class="text-xl font-bold mb-2">Nenhum caso configurado</h3><p class="text-sm" style="color:var(--muted)">Cadastre um caso para visualizar as estatísticas.</p></div>';$('publicStatsBody').innerHTML=h;return}
+    if(!Object.keys(allAns).length){h+='<div class="card text-center py-12"><h3 class="text-xl font-bold mb-2">Sem respostas registradas</h3><p class="text-sm" style="color:var(--muted)">Ainda não houve envio de respostas dos participantes.</p></div>';$('publicStatsBody').innerHTML=h;return}
+    caseIdx.forEach(function(ci){
+        var c=cases[ci];
+        var hasQuestion=false;
+        h+='<div class="card" style="padding:20px"><div class="mb-4"><p class="text-[10px] uppercase tracking-wide" style="color:var(--pri)">Caso '+(ci+1)+'</p><h3 class="text-lg font-bold mt-1">'+esc(c.title||'Caso sem título')+'</h3></div>';
+        c.qs.forEach(function(q,qi){
+            if(!q.text||!q.text.trim())return;
+            hasQuestion=true;
+            var stats=computeQStats(ci,qi,allAns);
+            var key=ci+'_'+qi;
+            var grouped={};
+            Object.keys(stats).forEach(function(label){
+                if(label==='total')return;
+                grouped[label]=[];
+                (stats[label].people||[]).forEach(function(p){grouped[label].push(p.name)});
+                grouped[label].sort(function(a,b){return a.localeCompare(b)});
+            });
+            h+='<div class="p-4 rounded-lg mb-4" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+            h+='<div class="flex flex-wrap items-center justify-between gap-3 mb-3"><div><p class="text-sm font-semibold">Pergunta '+(qi+1)+': '+esc(q.text)+'</p><p class="text-xs" style="color:var(--muted)">'+(stats.total||0)+' resposta'+(stats.total===1?'':'s')+'</p></div><button type="button" onclick="togglePublicNames('+ci+','+qi+')" class="btn-s text-xs py-1.5 px-3">'+(publicStatsExpanded[key]?'Ocultar nomes':'Mostrar nomes')+'</button></div>';
+            h+=renderQuestionPieChart(stats);
+            if(publicStatsExpanded[key]){
+                h+='<div class="mt-4 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide mb-3" style="color:var(--muted)">Participantes por alternativa</p>';
+                var labels=Object.keys(grouped);
+                if(!labels.length){h+='<p class="text-sm" style="color:var(--muted)">Nenhum participante respondeu esta pergunta.</p>'}
+                else{
+                    h+='<div class="space-y-3">';
+                    labels.forEach(function(label){
+                        var names=grouped[label]||[];
+                        h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex items-center justify-between gap-2 mb-2"><span class="text-sm font-bold" style="color:'+optColor(label)+'">Alternativa '+label+'</span><span class="text-xs" style="color:var(--muted)">'+names.length+' nome'+(names.length===1?'':'s')+'</span></div>';
+                        if(!names.length)h+='<p class="text-sm" style="color:var(--muted)">Nenhum participante selecionou esta alternativa.</p>';
+                        else h+='<div class="flex flex-wrap gap-2">'+names.map(function(name){return '<span class="badge" style="background:'+optColorL(label)+';color:'+optColor(label)+'">'+esc(name)+'</span>'}).join('')+'</div>';
+                        h+='</div>';
+                    });
+                    h+='</div>';
+                }
+                h+='</div>';
+            }
+            h+='</div>';
+        });
+        if(!hasQuestion)h+='<p class="text-sm" style="color:var(--muted)">Sem perguntas neste caso.</p>';
+        h+='</div>';
+    });
+    h+='</div>';
+    $('publicStatsBody').innerHTML=h;
 }
 
 /* ====== IMAGEM ====== */
