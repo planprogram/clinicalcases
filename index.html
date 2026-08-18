@@ -168,6 +168,7 @@
             </div>
             <div class="flex gap-2 flex-wrap">
                 <button type="button" onclick="loadAdminData()" class="btn-s text-xs py-2 px-3">Atualizar</button>
+                <button type="button" onclick="clearAllAnswers()" class="btn-s text-xs py-2 px-3">Limpar respostas</button>
                 <button type="button" onclick="clearAllDef()" class="btn-s text-xs py-2 px-3">Limpar defensores</button>
                 <button type="button" onclick="saveAll()" class="btn-p text-xs py-2 px-5">Salvar Casos</button>
             </div>
@@ -390,6 +391,7 @@ async function dbSaveCases(c){lastDbError='';try{await dbReq('app_state/global',
 async function dbLoadAnswers(name){if(!useRemote||!name)return null;var k=btoa(unescape(encodeURIComponent(name.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');try{var d=await dbReq('participant_answers/'+k,'GET');if(d&&d.answers_json)return d.answers_json;return{}}catch(e){return null}}
 async function dbSaveAnswers(name,ans){if(!useRemote||!name)return false;var k=btoa(unescape(encodeURIComponent(name.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');try{await dbReq('participant_answers/'+k,'PUT',{participant_name:name,answers_json:ans,updated_at:new Date().toISOString()});return true}catch(e){lastDbError=e.message;return false}}
 async function dbLoadAllAnswers(){if(!useRemote)return{};try{var d=await dbReq('participant_answers','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
+async function dbClearAllAnswers(){if(!useRemote)return false;try{await dbReq('participant_answers','DELETE');return true}catch(e){return false}}
 async function dbDeleteByKey(key){if(!useRemote||!key)return false;try{await dbReq('participant_answers/'+key,'DELETE');return true}catch(e){return false}}
 async function dbSaveDefenders(qKey,data){if(!useRemote)return false;try{await dbReq('defenders/'+qKey,'PUT',data);return true}catch(e){return false}}
 async function dbLoadAllDefenders(){if(!useRemote)return{};try{var d=await dbReq('defenders','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
@@ -793,6 +795,12 @@ async function doSelectDefendersCase(ci,btn){
     }
     if(any){toast('Defensores sorteados para o caso','ok');renStatsView()}
     else{toast('Nenhuma resposta neste caso ainda','warn');btn.disabled=false;btn.textContent='Sortear Defensores do Caso'}
+}
+
+async function clearAllAnswers(){
+    if(!confirm('Limpar todas as respostas dos participantes?'))return;
+    if(await dbClearAllAnswers()){toast('Respostas limpas','info');loadAdminData();if(aTab===cases.length)renStatsView();}
+    else toast('Erro ao limpar respostas','err');
 }
 
 async function clearAllDef(){
