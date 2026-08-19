@@ -250,7 +250,7 @@ var adminParticipants=[],adminByKey={};
 var statsCaseFilter=0,statsUnlocked=false;
 var saveTimer=null,lastDbError='';
 var participantSyncId=null,participantSyncBusy=false;
-var participantDefenderState={};
+var participantDefenderState={},participantSyncSignature='';
 
 /* ====== UTILITÁRIOS ====== */
 function $(i){return document.getElementById(i)}
@@ -571,6 +571,7 @@ async function enterDash(){
     if(!n){toast('Informe seu nome','warn');$('pNameIn').focus();return}
     pName=n;
     participantDefenderState={};
+    participantSyncSignature='';
     var remote=await dbLoadAnswers(pName);
     pAns=(remote&&typeof remote==='object')?remote:{};
     await renDash();show('sDash');
@@ -911,7 +912,7 @@ function renAdminSummary(){
     $('aSummary').innerHTML=h;
 }
 
-var publicStatsExpanded={};
+var publicStatsExpanded={},publicStatsCaseFilter=null;
 
 function openStatsPass(){
     $('modalStatsPass').style.display='flex';
@@ -955,7 +956,14 @@ async function renderPublicStats(){
     var h='<div class="space-y-6">';
     if(!caseIdx.length){h+='<div class="card text-center py-12"><h3 class="text-xl font-bold mb-2">Nenhum caso configurado</h3><p class="text-sm" style="color:var(--muted)">Cadastre um caso para visualizar as estatísticas.</p></div>';$('publicStatsBody').innerHTML=h;return}
     if(!Object.keys(allAns).length){h+='<div class="card text-center py-12"><h3 class="text-xl font-bold mb-2">Sem respostas registradas</h3><p class="text-sm" style="color:var(--muted)">Ainda não houve envio de respostas dos participantes.</p></div>';$('publicStatsBody').innerHTML=h;return}
+    if(publicStatsCaseFilter!==null&&caseIdx.indexOf(publicStatsCaseFilter)===-1)publicStatsCaseFilter=caseIdx[0];
+    h+='<div class="flex flex-wrap gap-2">';
+    h+='<button type="button" onclick="setPublicStatsCase(null)" class="tab '+(publicStatsCaseFilter===null?'on':'')+'" style="border-radius:8px;border-bottom:1px solid var(--bdr-l)">Todos os casos</button>';
     caseIdx.forEach(function(ci){
+        h+='<button type="button" onclick="setPublicStatsCase('+ci+')" class="tab '+(publicStatsCaseFilter===ci?'on':'')+'" style="border-radius:8px;border-bottom:1px solid var(--bdr-l)">Caso '+(ci+1)+'</button>';
+    });
+    h+='</div>';
+    caseIdx.filter(function(ci){return publicStatsCaseFilter===null||ci===publicStatsCaseFilter}).forEach(function(ci){
         var c=cases[ci];
         var hasQuestion=false;
         h+='<div class="card" style="padding:20px"><div class="mb-4"><p class="text-[10px] uppercase tracking-wide" style="color:var(--pri)">Caso '+(ci+1)+'</p><h3 class="text-lg font-bold mt-1">'+esc(c.title||'Caso sem título')+'</h3></div>';
@@ -998,6 +1006,11 @@ async function renderPublicStats(){
     });
     h+='</div>';
     $('publicStatsBody').innerHTML=h;
+}
+
+function setPublicStatsCase(ci){
+    publicStatsCaseFilter=ci===null?null:Number(ci);
+    renderPublicStats();
 }
 
 /* ====== IMAGEM ====== */
@@ -1296,6 +1309,9 @@ async function refreshParticipantState(silent){
         if(Array.isArray(remoteCases)){cases=remoteCases;normalizeCases()}
         var allDefs=await dbLoadAllDefenders();
         syncParticipantDefenderNotices(allDefs,!!silent);
+        var nextSignature=JSON.stringify({cases:cases,defenders:allDefs});
+        if(nextSignature===participantSyncSignature)return;
+        participantSyncSignature=nextSignature;
         var active=document.querySelector('.screen.active');
         if(!active)return;
         if(active.id==='sDash')await renDash();
