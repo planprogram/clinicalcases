@@ -52,12 +52,15 @@
         .stat-bar-a{background:var(--oa)}.stat-bar-b{background:var(--ob)}.stat-bar-c{background:var(--oc)}.stat-bar-d{background:var(--od)}
         .def-card{border-radius:10px;padding:16px;text-align:center;animation:sr .4s ease both;min-width:120px}
         .spinner{width:18px;height:18px;border:2px solid var(--bdr-l);border-top-color:var(--pri);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
+        .lang-switch{position:fixed;top:14px;right:16px;z-index:80;background:var(--card);color:var(--txt2);border:1px solid var(--bdr);padding:7px 11px;border-radius:6px;font:600 11px 'DM Sans',sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .2s}.lang-switch:hover{border-color:var(--pri);color:var(--pri)}
         .case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
         @media(max-width:767px){.case-grid{grid-template-columns:1fr}.admin-grid{grid-template-columns:1fr!important}.landing-grid{grid-template-columns:1fr!important}.tab{padding:8px 12px;font-size:11px}.card{padding:16px}}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
     </style>
 </head>
 <body>
+
+<button id="langSwitch" type="button" class="lang-switch" onclick="toggleLanguage()" aria-label="Mudar idioma">EN</button>
 
 <div id="toasts" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
 
@@ -241,7 +244,7 @@
 
 <script>
 /* ====== ESTADO GLOBAL ====== */
-var cases=[],aTab=0,pName='',pAns={},vCase=-1;
+var cases=[],aTab=0,pName='',pAns={},vCase=-1,currentLanguage='pt';
 var MAX_CASES=20,MIN_OPT=2,MAX_OPT=8,PASS='medartis@2026',STATS_PASS='medartis@2026';
 var FB_DB_URL='https://casosclinicosmao-default-rtdb.firebaseio.com';
 var FB_DB_TOKEN='';
@@ -254,6 +257,47 @@ var participantDefenderState={},participantSyncSignature='';
 
 /* ====== UTILITÁRIOS ====== */
 function $(i){return document.getElementById(i)}
+var languageOriginalText=new WeakMap();
+var languageDictionary={
+    'Avaliação de Casos Clínicos':'Clinical Case Assessment','Avaliação de':'Clinical Case','Casos Clínicos':'Clinical Cases',
+    'Plataforma de avaliação com múltipla escolha, estatísticas por caso e sorteio de defensores':'Assessment platform with multiple choice, case statistics and defender selection',
+    'Administrador':'Administrator','Participante':'Participant','Ver estatísticas':'View statistics','Acesso rápido':'Quick access',
+    'Aponte a câmera para entrar direto como participante':'Point your camera to enter directly as a participant',
+    'Painel Administrativo':'Admin Panel','Atualizar':'Refresh','Limpar respostas':'Clear answers','Limpar defensores':'Clear defenders','Salvar Casos':'Save Cases',
+    'Identificação':'Identification','Informe seu nome completo para iniciar':'Enter your full name to begin','Seu nome completo':'Your full name','Iniciar Avaliação':'Start Assessment',
+    'Sair':'Exit','Defensores':'Defenders','Finalizar Avaliação':'Submit Assessment','Casos':'Cases','Enviar e Voltar':'Submit and Return',
+    'Resultado da Avaliação':'Assessment Result','Estatísticas dos Casos':'Case Statistics','Voltar':'Back','Cancelar':'Cancel','Entrar':'Enter','Fechar':'Close',
+    'Acesso Restrito':'Restricted Access','Insira a senha de administrador':'Enter the administrator password','Estatísticas restritas':'Restricted statistics','Informe a senha para acessar os resultados':'Enter the password to view results','Senha':'Password',
+    'Nenhum caso configurado':'No cases configured','Sem respostas registradas':'No responses recorded','Nenhum caso disponível':'No cases available','Respostas':'Responses',
+    'Título do Caso Clínico':'Clinical Case Title','Imagem Clínica':'Clinical Image','Descrição Clínica':'Clinical Description','Número de Alternativas (por pergunta deste caso)':'Number of Options (per question)',
+    'Acesso do caso':'Case access','Caso liberado':'Case released','Liberar caso':'Release case','Remover imagem':'Remove image','Arraste ou clique para imagem':'Drag or click to add an image',
+    'Estatísticas':'Statistics','Nenhuma resposta neste caso ainda':'No responses for this case yet','Distribuição das respostas':'Answer distribution','respostas':'answers','Alternativa':'Option','você':'you',
+    'Pergunta':'Question','Alternativas':'Options','Explicação':'Explanation','Salvar':'Save','Adicionar pergunta':'Add question','Caso':'Case'
+};
+function translateValue(value){
+    if(currentLanguage==='pt')return value;
+    var translated=value;
+    Object.keys(languageDictionary).forEach(function(pt){translated=translated.split(pt).join(languageDictionary[pt])});
+    return translated;
+}
+function translateElementText(root){
+    var walker=document.createTreeWalker(root||document.body,NodeFilter.SHOW_TEXT),node;
+    while(node=walker.nextNode()){
+        if(!node.parentElement||node.parentElement.closest('#langSwitch,script,style'))continue;
+        if(!languageOriginalText.has(node))languageOriginalText.set(node,node.nodeValue);
+        node.nodeValue=translateValue(languageOriginalText.get(node));
+    }
+    document.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(function(input){
+        if(!input.dataset.ptPlaceholder)input.dataset.ptPlaceholder=input.placeholder;
+        input.placeholder=translateValue(input.dataset.ptPlaceholder);
+    });
+    document.documentElement.lang=currentLanguage==='en'?'en':'pt-BR';
+    $('langSwitch').textContent=currentLanguage==='en'?'PT':'EN';
+}
+function setLanguage(language){currentLanguage=language;translateElementText();try{sessionStorage.setItem('clinicalcases-language',language)}catch(e){}}
+function toggleLanguage(){setLanguage(currentLanguage==='pt'?'en':'pt')}
+var languageObserver=new MutationObserver(function(){if(currentLanguage==='en')translateElementText()});
+languageObserver.observe(document.body,{childList:true,subtree:true});
 function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');window.scrollTo(0,0);if(i==='sDash'||i==='sCase'||i==='sRes')startParticipantSync();else stopParticipantSync()}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(m,t){t=t||'info';var c={ok:'t-ok',err:'t-err',info:'t-info',warn:'t-warn'}[t]||'t-info';var e=document.createElement('div');e.className='toast '+c;e.textContent=m;$('toasts').appendChild(e);setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3500)}
@@ -1339,6 +1383,7 @@ async function init(){
     if(Array.isArray(remote))cases=remote;
     normalizeCases();
     setupQrParticipante();
+    try{if(sessionStorage.getItem('clinicalcases-language')==='en')setLanguage('en')}catch(e){}
     if(new URLSearchParams(location.search).get('tela')==='participante'){goName();return}
     show('sLanding');
 }
