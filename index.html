@@ -110,6 +110,21 @@
     </div>
 </div>
 
+<!-- MODAL DUVIDA (participante) -->
+<div id="modalDoubt" class="modal-bg" style="display:none" onclick="if(event.target===this)closeDoubtModal()">
+    <div class="modal-box" style="max-width:520px;text-align:left">
+        <div class="flex items-center justify-between mb-4">
+            <div><h3 class="text-xl font-bold">Enviar dúvida</h3><p class="text-xs mt-1" style="color:var(--muted)">Sua dúvida será encaminhada ao administrador.</p></div>
+            <button type="button" onclick="closeDoubtModal()" class="btn-s text-xs py-1 px-3">Fechar</button>
+        </div>
+        <label class="label" for="doubtCase">Caso relacionado</label>
+        <select id="doubtCase" class="inp mb-4"></select>
+        <label class="label" for="doubtText">Dúvida</label>
+        <textarea id="doubtText" class="inp mb-4" maxlength="1000" placeholder="Escreva sua dúvida..."></textarea>
+        <button type="button" onclick="sendDoubt()" class="btn-p w-full">Enviar dúvida</button>
+    </div>
+</div>
+
 <!-- ESTATÍSTICAS PÚBLICAS -->
 <div id="sPublicStats" class="screen">
     <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
@@ -211,6 +226,7 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 <button type="button" onclick="showDefModal()" class="btn-s text-xs py-2 px-3">Defensores</button>
+                <button type="button" onclick="openDoubtModal()" class="btn-s text-xs py-2 px-3">Enviar dúvida</button>
                 <button type="button" onclick="submitAns()" class="btn-p text-xs py-2 px-5">Finalizar Avaliação</button>
             </div>
         </div>
@@ -254,6 +270,7 @@ var statsCaseFilter=0,statsUnlocked=false;
 var saveTimer=null,lastDbError='';
 var participantSyncId=null,participantSyncBusy=false;
 var participantDefenderState={},participantSyncSignature='';
+var doubtSending=false;
 
 /* ====== UTILITÁRIOS ====== */
 function $(i){return document.getElementById(i)}
@@ -437,6 +454,8 @@ async function dbSaveCases(c){lastDbError='';try{await dbReq('app_state/global',
 async function dbLoadAnswers(name){if(!useRemote||!name)return null;var k=btoa(unescape(encodeURIComponent(name.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');try{var d=await dbReq('participant_answers/'+k,'GET');if(d&&d.answers_json)return d.answers_json;return{}}catch(e){return null}}
 async function dbSaveAnswers(name,ans){if(!useRemote||!name)return false;var k=btoa(unescape(encodeURIComponent(name.trim().toLowerCase()))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');try{await dbReq('participant_answers/'+k,'PUT',{participant_name:name,answers_json:ans,updated_at:new Date().toISOString()});return true}catch(e){lastDbError=e.message;return false}}
 async function dbLoadAllAnswers(){if(!useRemote)return{};try{var d=await dbReq('participant_answers','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
+async function dbSaveDoubt(data){if(!useRemote)return false;try{await dbReq('doubts','POST',data);return true}catch(e){lastDbError=e.message;return false}}
+async function dbLoadAllDoubts(){if(!useRemote)return{};try{var d=await dbReq('doubts','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
 async function dbClearAllAnswers(){if(!useRemote)return false;try{await dbReq('participant_answers','DELETE');return true}catch(e){return false}}
 async function dbDeleteByKey(key){if(!useRemote||!key)return false;try{await dbReq('participant_answers/'+key,'DELETE');return true}catch(e){return false}}
 async function dbSaveDefenders(qKey,data){if(!useRemote)return false;try{await dbReq('defenders/'+qKey,'PUT',data);return true}catch(e){return false}}
@@ -716,15 +735,37 @@ async function toggleQuestionRelease(ci,qi){
 }
 
 /* ====== ADMIN: VISÃO DE ESTATÍSTICAS ====== */
+function renderDoubtsPanel(allDoubts,ci){
+    var doubts=[];
+    Object.keys(allDoubts||{}).forEach(function(key){
+        var doubt=allDoubts[key];
+        if(doubt&&Number(doubt.case_index)===ci)doubts.push(doubt);
+    });
+    doubts.sort(function(a,b){return new Date(b.created_at||0)-new Date(a.created_at||0)});
+    var h='<div class="card" style="padding:20px"><div class="flex flex-wrap items-center justify-between gap-2 mb-4"><div><p class="text-xs font-bold tracking-wide" style="color:var(--acc);text-transform:uppercase;letter-spacing:.8px">Dúvidas dos participantes</p><h3 class="text-xl font-bold mt-1">Caso '+(ci+1)+'</h3></div><span class="badge" style="background:var(--acc-l);color:var(--acc)">'+doubts.length+' dúvida'+(doubts.length===1?'':'s')+'</span></div>';
+    if(!doubts.length){h+='<p class="text-sm" style="color:var(--muted)">Nenhuma dúvida foi enviada para este caso.</p>'}
+    else{
+        h+='<div class="space-y-3">';
+        doubts.forEach(function(doubt){
+            h+='<div class="rounded-lg p-4" style="background:var(--bg);border:1px solid var(--bdr-l)">';
+            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2"><p class="text-sm font-semibold">'+esc(doubt.participant_name||'Anônimo')+'</p><span class="text-xs" style="color:var(--muted)">'+fmtDate(doubt.created_at)+'</span></div>';
+            h+='<p class="text-sm leading-relaxed" style="white-space:pre-line">'+esc(doubt.text)+'</p>';
+            h+='</div>';
+        });
+        h+='</div>';
+    }
+    return h+'</div>';
+}
 async function renStatsView(){
     var allAns=await dbLoadAllAnswers();
     var allDefs=await dbLoadAllDefenders();
+    var allDoubts=await dbLoadAllDoubts();
     var caseIdx=getConfiguredCases();
     var totalP=Object.keys(allAns).length;
 
     var h='<div class="space-y-6">';
     if(!caseIdx.length){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum caso configurado.</div>';$('aBody').innerHTML=h;return}
-    if(!totalP){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhum participante respondeu ainda.</div>';$('aBody').innerHTML=h;return}
+    if(!totalP&&!Object.keys(allDoubts).length){h+='<div class="p-6 text-center text-sm" style="color:var(--muted)">Nenhuma resposta ou dúvida registrada ainda.</div>';$('aBody').innerHTML=h;return}
 
     if(caseIdx.indexOf(statsCaseFilter)===-1)statsCaseFilter=caseIdx[0];
     h+='<div class="flex flex-wrap gap-2">';
@@ -732,6 +773,7 @@ async function renStatsView(){
         h+='<button type="button" onclick="setStatsCase('+ci+')" class="tab '+(statsCaseFilter===ci?'on':'')+'" style="border-radius:8px;border-bottom:1px solid var(--bdr-l)">Caso '+(ci+1)+'</button>';
     });
     h+='</div>';
+    h+=renderDoubtsPanel(allDoubts,statsCaseFilter);
 
     var visibleCaseIdx=caseIdx.filter(function(ci){return ci===statsCaseFilter});
     var releaseCount=cases.filter(function(c){return c&&c.released}).length;
@@ -1112,6 +1154,31 @@ async function resetAll(){
 }
 
 /* ====== DASHBOARD PARTICIPANTE ====== */
+function openDoubtModal(){
+    var caseSelect=$('doubtCase');
+    var caseIdx=getConfiguredCases();
+    if(!caseIdx.length){toast('Nenhum caso configurado para relacionar a dúvida','warn');return}
+    caseSelect.innerHTML=caseIdx.map(function(ci){return'<option value="'+ci+'">Caso '+(ci+1)+': '+esc(cases[ci].title)+'</option>'}).join('');
+    var firstReleased=getReleasedCases()[0];
+    if(firstReleased!==undefined)caseSelect.value=String(firstReleased);
+    $('doubtText').value='';
+    $('modalDoubt').style.display='flex';
+    setTimeout(function(){$('doubtText').focus()},150);
+}
+function closeDoubtModal(){$('modalDoubt').style.display='none'}
+async function sendDoubt(){
+    var caseIndex=parseInt($('doubtCase').value,10);
+    var text=$('doubtText').value.trim();
+    if(isNaN(caseIndex)||!cases[caseIndex]){toast('Selecione um caso','warn');return}
+    if(!text){toast('Escreva sua dúvida antes de enviar','warn');$('doubtText').focus();return}
+    if(doubtSending)return;
+    doubtSending=true;
+    var sent=await dbSaveDoubt({participant_name:pName,case_index:caseIndex,case_title:cases[caseIndex].title,text:text,created_at:new Date().toISOString()});
+    doubtSending=false;
+    if(!sent){toast('Erro ao enviar dúvida: '+(lastDbError||'verifique a conexão'),'err');return}
+    closeDoubtModal();
+    toast('Dúvida enviada com sucesso','ok');
+}
 async function renDash(){
     $('dTitle').textContent=pName;
     var avail=getReleasedCases();var total=getParticipantTotalQuestions(),ansCnt=getParticipantAnsweredCount(pAns);

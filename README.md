@@ -47,3 +47,4 @@ var FB_CONFIG={
 - Dados gravados no banco:
 	- `app_state/global/cases_json`
 	- `participant_answers/{id_participante}`
+	- `doubts/{id_duvida}` (nome do participante, caso relacionado, dúvida e data de envio)
