@@ -458,6 +458,7 @@ async function dbSaveAnswers(name,ans){if(!useRemote||!name)return false;var k=b
 async function dbLoadAllAnswers(){if(!useRemote)return{};try{var d=await dbReq('participant_answers','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
 async function dbSaveDoubt(data){if(!useRemote)return false;try{await dbReq('doubts','POST',data);return true}catch(e){lastDbError=e.message;return false}}
 async function dbLoadAllDoubts(){if(!useRemote)return{};try{var d=await dbReq('doubts','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
+async function dbDeleteDoubt(key){if(!useRemote||!key)return false;try{await dbReq('doubts/'+key,'DELETE');return true}catch(e){lastDbError=e.message;return false}}
 async function dbClearAllAnswers(){if(!useRemote)return false;try{await dbReq('participant_answers','DELETE');return true}catch(e){return false}}
 async function dbDeleteByKey(key){if(!useRemote||!key)return false;try{await dbReq('participant_answers/'+key,'DELETE');return true}catch(e){return false}}
 async function dbSaveDefenders(qKey,data){if(!useRemote)return false;try{await dbReq('defenders/'+qKey,'PUT',data);return true}catch(e){return false}}
@@ -785,14 +786,21 @@ function renderDoubtsPanel(allDoubts,ci){
     else{
         h+='<div class="space-y-3">';
         doubts.forEach(function(doubt){
+            var doubtKey=Object.keys(allDoubts).filter(function(key){return allDoubts[key]===doubt})[0];
             h+='<div class="rounded-lg p-4" style="background:var(--bg);border:1px solid var(--bdr-l)">';
-            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2"><p class="text-sm font-semibold">'+esc(doubt.participant_name||'Anônimo')+'</p><span class="text-xs" style="color:var(--muted)">'+fmtDate(doubt.created_at)+'</span></div>';
+            h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-2"><div><p class="text-sm font-semibold">'+esc(doubt.participant_name||'Anônimo')+'</p><span class="text-xs" style="color:var(--muted)">'+fmtDate(doubt.created_at)+'</span></div><button type="button" onclick="deleteDoubt(\''+doubtKey+'\')" class="btn-d text-xs py-1.5 px-3">Remover</button></div>';
             h+='<p class="text-sm leading-relaxed" style="white-space:pre-line">'+esc(doubt.text)+'</p>';
             h+='</div>';
         });
         h+='</div>';
     }
     return h+'</div>';
+}
+async function deleteDoubt(key){
+    if(!key||!confirm('Remover esta dúvida?'))return;
+    if(!await dbDeleteDoubt(key)){toast('Erro ao remover dúvida: '+(lastDbError||'verifique conexão'),'err');return}
+    toast('Dúvida removida','ok');
+    await renStatsView();
 }
 async function renStatsView(){
     var allAns=await dbLoadAllAnswers();
