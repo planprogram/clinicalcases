@@ -54,6 +54,8 @@
         .spinner{width:18px;height:18px;border:2px solid var(--bdr-l);border-top-color:var(--pri);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
         .lang-switch{position:fixed;top:14px;right:16px;z-index:80;background:var(--card);color:var(--txt2);border:1px solid var(--bdr);padding:7px 11px;border-radius:6px;font:600 11px 'DM Sans',sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .2s}.lang-switch:hover{border-color:var(--pri);color:var(--pri)}
         .case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+        .admin-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:6px;align-items:stretch}
+        .admin-tabs .tab{width:100%;border:1px solid var(--bdr-l);border-radius:8px;text-align:center;padding:9px 8px}
         @media(max-width:767px){.case-grid{grid-template-columns:1fr}.admin-grid{grid-template-columns:1fr!important}.landing-grid{grid-template-columns:1fr!important}.tab{padding:8px 12px;font-size:11px}.card{padding:16px}}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
     </style>
@@ -195,7 +197,7 @@
     <div class="max-w-7xl mx-auto px-4 md:px-6 py-5 admin-grid">
         <aside><div id="aSummary" class="card" style="position:sticky;top:80px"></div></aside>
         <div>
-            <div id="aTabs" class="flex gap-1 overflow-x-auto pb-0"></div>
+            <div id="aTabs" class="admin-tabs pb-1"></div>
             <div id="aBody" class="card" style="border-radius:0 10px 10px 10px;min-height:500px"></div>
         </div>
     </div>
@@ -653,6 +655,15 @@ function chkPass(){
 
 /* ====== ADMIN: ABAS ====== */
 function addCase(){if(cases.length>=MAX_CASES){toast('Máximo de '+MAX_CASES+' casos','warn');return}cases.push(mkC());aTab=cases.length-1;renATabs();renABody();toast('Caso adicionado','ok')}
+async function removeCase(ci){
+    if(!cases[ci])return;
+    if(!confirm('Excluir o Caso '+(ci+1)+'? Esta ação removerá também as perguntas cadastradas neste caso.'))return;
+    var removedCase=cases.splice(ci,1)[0];
+    aTab=Math.min(ci,Math.max(0,cases.length-1));
+    if(!await dbSaveCases(cases)){cases.splice(ci,0,removedCase);aTab=ci;renATabs();renABody();toast('Erro ao excluir: '+(lastDbError||'verifique conexão'),'err');return}
+    renATabs();renABody();renAdminSummary();
+    toast('Caso excluído','ok');
+}
 function renATabs(){
     if(aTab>cases.length)aTab=cases.length;
     var h='';
@@ -671,6 +682,7 @@ function renABody(){
     if(aTab===cases.length){renStatsView();return}
     if(aTab>=cases.length)aTab=Math.max(0,cases.length-1);
     var c=cases[aTab],i=aTab,h='<div class="space-y-6">';
+    h+='<div class="flex flex-wrap items-center justify-between gap-3 pb-4" style="border-bottom:1px solid var(--bdr-l)"><div><p class="text-xs font-bold tracking-wide" style="color:var(--pri);text-transform:uppercase;letter-spacing:.8px">Caso '+(i+1)+'</p><p class="text-xs" style="color:var(--muted)">Edite as informações e perguntas deste caso.</p></div><button type="button" onclick="removeCase('+i+')" class="btn-d">Excluir caso</button></div>';
     /* Título */
     h+='<div><label class="label">Título do Caso Clínico</label><input class="inp text-base font-semibold" value="'+esc(c.title)+'" oninput="cases['+i+'].title=this.value" placeholder="Ex: Fratura exposta de tíbia direita"></div>';
     h+='<div class="p-4 rounded-lg" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex flex-wrap items-center justify-between gap-3"><div><p class="text-sm font-semibold">Acesso do caso</p><p class="text-xs" style="color:var(--muted)">O caso so aparece para os participantes apos esta liberacao.</p></div><button type="button" onclick="toggleCaseRelease('+i+')" class="'+(c.released?'btn-p':'btn-s')+' text-xs py-2 px-4">'+(c.released?'Caso liberado':'Liberar caso')+'</button></div></div>';
