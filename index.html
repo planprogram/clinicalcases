@@ -746,6 +746,32 @@ async function toggleQuestionRelease(ci,qi){
     renABody();renAdminSummary();
 }
 
+function caseQuestionsReleased(ci){
+    var questions=cases[ci]&&Array.isArray(cases[ci].qs)?cases[ci].qs.filter(function(q){return q&&q.text&&q.text.trim()}):[];
+    return questions.length>0&&questions.every(function(q){return q.released});
+}
+
+async function setAllRelease(released){
+    var previous=JSON.stringify(cases);
+    cases.forEach(function(c){
+        c.released=released;
+        c.qs.forEach(function(q){q.released=released});
+    });
+    if(!await persistCaseReleaseState()){cases=JSON.parse(previous);return}
+    toast(released?'Todos os casos e perguntas foram liberados':'Todos os casos e perguntas foram bloqueados','ok');
+    renATabs();renABody();renAdminSummary();
+}
+
+async function setCaseQuestionsRelease(ci,released){
+    if(!cases[ci])return;
+    var previous=JSON.stringify(cases);
+    cases[ci].released=true;
+    cases[ci].qs.forEach(function(q){q.released=released});
+    if(!await persistCaseReleaseState()){cases=JSON.parse(previous);return}
+    toast(released?'Caso e todas as perguntas liberados':'Todas as perguntas do caso foram bloqueadas','ok');
+    renATabs();renABody();renAdminSummary();
+}
+
 /* ====== ADMIN: VISÃO DE ESTATÍSTICAS ====== */
 function renderDoubtsPanel(allDoubts,ci){
     var doubts=[];
@@ -840,7 +866,8 @@ async function renStatsView(){
         h+='</div>';
     });
 
-    h+='<div class="card" style="padding:20px"><div class="mb-4"><p class="text-xs font-bold tracking-wide" style="color:var(--pri);text-transform:uppercase;letter-spacing:.8px">Painel de controle</p><h3 class="text-xl font-bold mt-1">Liberar casos e perguntas</h3></div>';
+    var allReleased=caseIdx.length>0&&caseIdx.every(function(ci){return cases[ci].released&&caseQuestionsReleased(ci)});
+    h+='<div class="card" style="padding:20px"><div class="flex flex-wrap items-center justify-between gap-3 mb-4"><div><p class="text-xs font-bold tracking-wide" style="color:var(--pri);text-transform:uppercase;letter-spacing:.8px">Painel de controle</p><h3 class="text-xl font-bold mt-1">Liberar casos e perguntas</h3></div><button type="button" onclick="setAllRelease('+(allReleased?'false':'true')+')" class="'+(allReleased?'btn-s':'btn-p')+' text-xs py-2 px-4">'+(allReleased?'Bloquear todos':'Liberar todos')+'</button></div>';
     h+='<div class="grid grid-cols-2 gap-3 mb-4">';
     h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Casos</p><p class="text-2xl font-bold mt-1">'+releaseCount+'/'+caseIdx.length+'</p></div>';
     h+='<div class="rounded-lg p-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Perguntas</p><p class="text-2xl font-bold mt-1">'+releasedQuestionCount+'/'+questionCount+'</p></div>';
@@ -849,7 +876,8 @@ async function renStatsView(){
     h+='</div>';
     caseIdx.forEach(function(ci){
         var c=cases[ci];
-        h+='<div class="rounded-lg p-3 mb-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex items-center justify-between gap-2 mb-2"><div><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Caso '+(ci+1)+'</p><p class="text-sm font-semibold">'+esc(c.title||'Sem título')+'</p></div><button type="button" onclick="toggleCaseRelease('+ci+')" class="'+(c.released?'btn-p':'btn-s')+' text-[11px] py-1.5 px-3">'+(c.released?'Liberado':'Bloqueado')+'</button></div>';
+        var caseAllReleased=c.released&&caseQuestionsReleased(ci);
+        h+='<div class="rounded-lg p-3 mb-3" style="background:var(--bg);border:1px solid var(--bdr-l)"><div class="flex flex-wrap items-center justify-between gap-2 mb-2"><div><p class="text-[10px] uppercase tracking-wide" style="color:var(--muted)">Caso '+(ci+1)+'</p><p class="text-sm font-semibold">'+esc(c.title||'Sem título')+'</p></div><div class="flex flex-wrap gap-2"><button type="button" onclick="setCaseQuestionsRelease('+ci+','+(caseAllReleased?'false':'true')+')" class="'+(caseAllReleased?'btn-s':'btn-p')+' text-[11px] py-1.5 px-3">'+(caseAllReleased?'Bloquear caso e perguntas':'Liberar caso e perguntas')+'</button><button type="button" onclick="toggleCaseRelease('+ci+')" class="btn-s text-[11px] py-1.5 px-3">'+(c.released?'Bloquear caso':'Liberar caso')+'</button></div></div>';
         c.qs.forEach(function(q,qi){
             if(!q||!q.text||!q.text.trim())return;
             h+='<div class="flex items-center justify-between gap-3 py-2 border-t" style="border-color:var(--bdr-l)"><div><p class="text-xs font-semibold">Pergunta '+(qi+1)+'</p><p class="text-[11px]" style="color:var(--muted)">'+esc(q.text.slice(0,34)+(q.text.length>34?'...':''))+'</p></div><button type="button" onclick="toggleQuestionRelease('+ci+','+qi+')" class="'+(q.released?'btn-p':'btn-s')+' text-[11px] py-1.5 px-3">'+(q.released?'Liberada':'Liberar')+'</button></div>';
