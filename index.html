@@ -273,6 +273,7 @@ var saveTimer=null,lastDbError='';
 var participantSyncId=null,participantSyncBusy=false;
 var participantDefenderState={},participantSyncSignature='';
 var doubtSending=false;
+var restoredNavigation=null;
 
 /* ====== UTILITÁRIOS ====== */
 function $(i){return document.getElementById(i)}
@@ -319,7 +320,8 @@ function setLanguage(language){currentLanguage=language;translateElementText();t
 function toggleLanguage(){setLanguage(currentLanguage==='pt'?'en':'pt')}
 var languageObserver=new MutationObserver(function(){if(currentLanguage==='en')translateElementText()});
 languageObserver.observe(document.body,{childList:true,subtree:true});
-function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');window.scrollTo(0,0);if(i==='sDash'||i==='sCase'||i==='sRes')startParticipantSync();else stopParticipantSync()}
+function saveNavigationState(screen){try{sessionStorage.setItem('clinicalcases-navigation',JSON.stringify({screen:screen,pName:pName,vCase:vCase,aTab:aTab,statsUnlocked:statsUnlocked}))}catch(e){}}
+function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');saveNavigationState(i);window.scrollTo(0,0);if(i==='sDash'||i==='sCase'||i==='sRes')startParticipantSync();else stopParticipantSync()}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(m,t){t=t||'info';var c={ok:'t-ok',err:'t-err',info:'t-info',warn:'t-warn'}[t]||'t-info';var e=document.createElement('div');e.className='toast '+c;e.textContent=m;$('toasts').appendChild(e);setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3500)}
 function fmtDate(iso){if(!iso)return'—';try{return new Date(iso).toLocaleString('pt-BR')}catch(e){return'—'}}
@@ -1501,6 +1503,35 @@ async function init(){
     normalizeCases();
     setupQrParticipante();
     try{if(sessionStorage.getItem('clinicalcases-language')==='en')setLanguage('en')}catch(e){}
+    try{restoredNavigation=JSON.parse(sessionStorage.getItem('clinicalcases-navigation')||'null')}catch(e){restoredNavigation=null}
+    if(restoredNavigation&&restoredNavigation.screen==='sDash'&&restoredNavigation.pName){
+        pName=restoredNavigation.pName;
+        vCase=typeof restoredNavigation.vCase==='number'?restoredNavigation.vCase:-1;
+        var savedAnswers=await dbLoadAnswers(pName);
+        pAns=(savedAnswers&&typeof savedAnswers==='object')?savedAnswers:{};
+        await renDash();show('sDash');return;
+    }
+    if(restoredNavigation&&restoredNavigation.screen==='sCase'&&restoredNavigation.pName&&restoredNavigation.vCase>-1){
+        pName=restoredNavigation.pName;
+        vCase=restoredNavigation.vCase;
+        var caseAnswers=await dbLoadAnswers(pName);
+        pAns=(caseAnswers&&typeof caseAnswers==='object')?caseAnswers:{};
+        await renCase(vCase);show('sCase');return;
+    }
+    if(restoredNavigation&&restoredNavigation.screen==='sRes'&&restoredNavigation.pName){
+        pName=restoredNavigation.pName;
+        var resultAnswers=await dbLoadAnswers(pName);
+        pAns=(resultAnswers&&typeof resultAnswers==='object')?resultAnswers:{};
+        await renderResults();show('sRes');return;
+    }
+    if(restoredNavigation&&restoredNavigation.screen==='sAdmin'){
+        aTab=typeof restoredNavigation.aTab==='number'?restoredNavigation.aTab:0;
+        renATabs();renABody();await loadAdminData();show('sAdmin');return;
+    }
+    if(restoredNavigation&&restoredNavigation.screen==='sPublicStats'&&restoredNavigation.statsUnlocked){
+        statsUnlocked=true;
+        await renderPublicStats();show('sPublicStats');return;
+    }
     if(new URLSearchParams(location.search).get('tela')==='participante'){goName();return}
     show('sLanding');
 }
