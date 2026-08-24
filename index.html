@@ -127,6 +127,22 @@
     </div>
 </div>
 
+<!-- MODAL MENSAGEM DO ADMINISTRADOR -->
+<div id="modalAnnouncement" class="modal-bg" style="display:none" onclick="if(event.target===this)closeAnnouncementModal()">
+    <div class="modal-box" style="max-width:620px;text-align:left">
+        <div class="flex items-center justify-between mb-4">
+            <div><h3 class="text-xl font-bold">Mensagem nas estatísticas</h3><p class="text-xs mt-1" style="color:var(--muted)">Publique um aviso que ficará visível para quem acessar as estatísticas.</p></div>
+            <button type="button" onclick="closeAnnouncementModal()" class="btn-s text-xs py-1 px-3">Fechar</button>
+        </div>
+        <label class="label" for="announcementText">Mensagem</label>
+        <textarea id="announcementText" class="inp mb-4" maxlength="1000" rows="5" placeholder="Escreva uma mensagem para os participantes..."></textarea>
+        <div class="flex flex-wrap justify-end gap-2">
+            <button type="button" onclick="deleteAnnouncement()" class="btn-d">Remover mensagem</button>
+            <button type="button" onclick="saveAnnouncement()" class="btn-p">Publicar mensagem</button>
+        </div>
+    </div>
+</div>
+
 <!-- ESTATÍSTICAS PÚBLICAS -->
 <div id="sPublicStats" class="screen">
     <header class="header-bar sticky top-0 z-20 px-4 md:px-6 py-3">
@@ -188,6 +204,7 @@
             </div>
             <div class="flex gap-2 flex-wrap">
                 <button type="button" onclick="loadAdminData()" class="btn-s text-xs py-2 px-3">Atualizar</button>
+                <button type="button" onclick="openAnnouncementModal()" class="btn-s text-xs py-2 px-3">Mensagem</button>
                 <button type="button" onclick="clearAllAnswers()" class="btn-s text-xs py-2 px-3">Limpar respostas</button>
                 <button type="button" onclick="clearAllDef()" class="btn-s text-xs py-2 px-3">Limpar defensores</button>
                 <button type="button" onclick="saveAll()" class="btn-p text-xs py-2 px-5">Salvar Casos</button>
@@ -461,6 +478,9 @@ async function dbLoadAllAnswers(){if(!useRemote)return{};try{var d=await dbReq('
 async function dbSaveDoubt(data){if(!useRemote)return false;try{await dbReq('doubts','POST',data);return true}catch(e){lastDbError=e.message;return false}}
 async function dbLoadAllDoubts(){if(!useRemote)return{};try{var d=await dbReq('doubts','GET');return d&&typeof d==='object'?d:{}}catch(e){return{}}}
 async function dbDeleteDoubt(key){if(!useRemote||!key)return false;try{await dbReq('doubts/'+key,'DELETE');return true}catch(e){lastDbError=e.message;return false}}
+async function dbSaveAnnouncement(text){if(!useRemote)return false;try{await dbReq('app_state/announcement','PUT',{text:text,updated_at:new Date().toISOString()});return true}catch(e){lastDbError=e.message;return false}}
+async function dbLoadAnnouncement(){if(!useRemote)return null;try{var d=await dbReq('app_state/announcement','GET');return d&&typeof d==='object'?d:null}catch(e){return null}}
+async function dbDeleteAnnouncement(){if(!useRemote)return false;try{await dbReq('app_state/announcement','DELETE');return true}catch(e){lastDbError=e.message;return false}}
 async function dbClearAllAnswers(){if(!useRemote)return false;try{await dbReq('participant_answers','DELETE');return true}catch(e){return false}}
 async function dbDeleteByKey(key){if(!useRemote||!key)return false;try{await dbReq('participant_answers/'+key,'DELETE');return true}catch(e){return false}}
 async function dbSaveDefenders(qKey,data){if(!useRemote)return false;try{await dbReq('defenders/'+qKey,'PUT',data);return true}catch(e){return false}}
@@ -1090,8 +1110,10 @@ async function togglePublicNames(ci,qi){
 
 async function renderPublicStats(){
     var allAns=await dbLoadAllAnswers();
+    var announcement=await dbLoadAnnouncement();
     var caseIdx=getConfiguredCases();
     var h='<div class="space-y-6">';
+    if(announcement&&announcement.text)h+='<div class="card" style="padding:20px;border-left:4px solid var(--acc);background:var(--acc-l)"><p class="text-[10px] uppercase tracking-wide font-bold mb-2" style="color:var(--acc)">Mensagem do administrador</p><p class="text-sm leading-relaxed" style="white-space:pre-line">'+esc(announcement.text)+'</p><p class="text-[11px] mt-3" style="color:var(--muted)">'+fmtDate(announcement.updated_at)+'</p></div>';
     if(!caseIdx.length){h+='<div class="card text-center py-12"><h3 class="text-xl font-bold mb-2">Nenhum caso configurado</h3><p class="text-sm" style="color:var(--muted)">Cadastre um caso para visualizar as estatísticas.</p></div>';$('publicStatsBody').innerHTML=h;return}
     if(!Object.keys(allAns).length){h+='<div class="card text-center py-12"><h3 class="text-xl font-bold mb-2">Sem respostas registradas</h3><p class="text-sm" style="color:var(--muted)">Ainda não houve envio de respostas dos participantes.</p></div>';$('publicStatsBody').innerHTML=h;return}
     if(publicStatsCaseFilter!==null&&caseIdx.indexOf(publicStatsCaseFilter)===-1)publicStatsCaseFilter=caseIdx[0];
@@ -1149,6 +1171,27 @@ async function renderPublicStats(){
 function setPublicStatsCase(ci){
     publicStatsCaseFilter=ci===null?null:Number(ci);
     renderPublicStats();
+}
+
+async function openAnnouncementModal(){
+    var announcement=await dbLoadAnnouncement();
+    $('announcementText').value=announcement&&announcement.text?announcement.text:'';
+    $('modalAnnouncement').style.display='flex';
+    setTimeout(function(){$('announcementText').focus()},150);
+}
+function closeAnnouncementModal(){$('modalAnnouncement').style.display='none'}
+async function saveAnnouncement(){
+    var text=$('announcementText').value.trim();
+    if(!text){toast('Escreva uma mensagem antes de publicar','warn');$('announcementText').focus();return}
+    if(!await dbSaveAnnouncement(text)){toast('Erro ao publicar mensagem: '+(lastDbError||'verifique a conexão'),'err');return}
+    closeAnnouncementModal();
+    toast('Mensagem publicada','ok');
+}
+async function deleteAnnouncement(){
+    if(!confirm('Remover a mensagem das estatísticas?'))return;
+    if(!await dbDeleteAnnouncement()){toast('Erro ao remover mensagem: '+(lastDbError||'verifique a conexão'),'err');return}
+    closeAnnouncementModal();
+    toast('Mensagem removida','ok');
 }
 
 /* ====== IMAGEM ====== */
