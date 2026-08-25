@@ -538,12 +538,9 @@ function computeQStats(ci,qi,allAns){
     return stats;
 }
 
-function renderQuestionPieChart(stats){
+function renderQuestionPieChart(stats,q){
     var labels=Object.keys(stats).filter(function(k){return k!=='total'});
     var total=labels.reduce(function(sum,l){return sum + (stats[l].count||0)},0);
-    if(!total){
-        return '<div class="flex items-center justify-center rounded-lg border border-dashed" style="border-color:var(--bdr-l);background:var(--bg);min-height:150px"><div class="text-center"><p class="text-sm font-semibold">Sem respostas</p><p class="text-xs" style="color:var(--muted)">Ainda não há votos registrados.</p></div></div>';
-    }
     var radius=36;
     var circumference=2*Math.PI*radius;
     var currentOffset=0;
@@ -564,8 +561,9 @@ function renderQuestionPieChart(stats){
     h+='<div class="space-y-2">';
     labels.forEach(function(l){
         var s=stats[l];
+        var option=q&&q.options?q.options.filter(function(o){return o.label===l})[0]:null;
         h+='<div class="flex items-center justify-between gap-3 text-xs">';
-        h+='<div class="flex items-center gap-2"><span class="inline-block rounded-full" style="width:10px;height:10px;background:'+optColor(l)+'"></span><span class="font-semibold" style="color:var(--txt2)">Alternativa '+l+'</span></div>';
+        h+='<div class="flex items-start gap-2 min-w-0"><span class="inline-block rounded-full mt-1.5 flex-shrink-0" style="width:10px;height:10px;background:'+optColor(l)+'"></span><span class="font-semibold" style="color:var(--txt2)">Alternativa '+l+': '+esc(option&&option.text?option.text:'Sem texto cadastrado')+'</span></div>';
         h+='<span style="color:var(--muted)">'+s.count+' · '+s.pct+'%</span>';
         h+='</div>';
     });
@@ -860,7 +858,7 @@ async function renStatsView(){
             var def=allDefs[qKey]||null;
             h+='<div class="p-4 rounded-lg mb-4" style="background:var(--bg);border:1px solid var(--bdr-l)">';
             h+='<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><p class="text-sm font-semibold">Pergunta '+(qi+1)+': '+esc(q.text)+'</p><span class="badge" style="background:'+(q.released?'var(--pri-l)':'var(--bg2)')+';color:'+(q.released?'var(--pri)':'var(--muted)')+'">'+(q.released?'Liberada':'Bloqueada')+'</span></div>';
-            h+=renderQuestionPieChart(stats);
+            h+=renderQuestionPieChart(stats,q);
             if(q.expl&&q.expl.trim())h+='<div class="mt-3 p-3 rounded-lg text-sm" style="background:var(--ok-l);border:1px solid rgba(46,125,50,.15)">'+esc(q.expl)+'</div>';
             h+='<div class="mt-4 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)"><p class="text-xs font-bold mb-3" style="color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Definir defensor por alternativa</p>';
             q.options.forEach(function(o){
@@ -1141,7 +1139,7 @@ async function renderPublicStats(){
             });
             h+='<div class="p-4 rounded-lg mb-4" style="background:var(--bg);border:1px solid var(--bdr-l)">';
             h+='<div class="flex flex-wrap items-center justify-between gap-3 mb-3"><div><p class="text-sm font-semibold">Pergunta '+(qi+1)+': '+esc(q.text)+'</p><p class="text-xs" style="color:var(--muted)">'+(stats.total||0)+' resposta'+(stats.total===1?'':'s')+'</p></div><button type="button" onclick="togglePublicNames('+ci+','+qi+')" class="btn-s text-xs py-1.5 px-3">'+(publicStatsExpanded[key]?'Ocultar nomes':'Mostrar nomes')+'</button></div>';
-            h+=renderQuestionPieChart(stats);
+            h+=renderQuestionPieChart(stats,q);
             if(publicStatsExpanded[key]){
                 h+='<div class="mt-4 p-3 rounded-lg" style="background:#fff;border:1px solid var(--bdr-l)"><p class="text-[10px] uppercase tracking-wide mb-3" style="color:var(--muted)">Participantes por alternativa</p>';
                 var labels=Object.keys(grouped);
