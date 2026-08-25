@@ -826,9 +826,11 @@ async function deleteDoubt(key){
     await renStatsView();
 }
 async function renStatsView(){
-    var allAns=await dbLoadAllAnswers();
-    var allDefs=await dbLoadAllDefenders();
-    var allDoubts=await dbLoadAllDoubts();
+    $('aBody').innerHTML='<div class="p-10 text-center text-sm" style="color:var(--muted)"><span class="spinner"></span><p class="mt-3">Carregando estatísticas...</p></div>';
+    var results=await Promise.all([dbLoadAllAnswers(),dbLoadAllDefenders(),dbLoadAllDoubts()]);
+    var allAns=results[0];
+    var allDefs=results[1];
+    var allDoubts=results[2];
     var caseIdx=getConfiguredCases();
     var totalP=Object.keys(allAns).length;
 
