@@ -291,6 +291,7 @@ var participantSyncId=null,participantSyncBusy=false;
 var participantDefenderState={},participantSyncSignature='';
 var doubtSending=false;
 var restoredNavigation=null;
+var restoredScrollY=null;
 
 /* ====== UTILITÁRIOS ====== */
 function $(i){return document.getElementById(i)}
@@ -337,8 +338,10 @@ function setLanguage(language){currentLanguage=language;translateElementText();t
 function toggleLanguage(){setLanguage(currentLanguage==='pt'?'en':'pt')}
 var languageObserver=new MutationObserver(function(){if(currentLanguage==='en')translateElementText()});
 languageObserver.observe(document.body,{childList:true,subtree:true});
+function saveScrollPosition(){try{sessionStorage.setItem('clinicalcases-scroll-y',String(window.scrollY))}catch(e){}}
+window.addEventListener('pagehide',saveScrollPosition);
 function saveNavigationState(screen){try{sessionStorage.setItem('clinicalcases-navigation',JSON.stringify({screen:screen,pName:pName,vCase:vCase,aTab:aTab,statsUnlocked:statsUnlocked}))}catch(e){}}
-function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');saveNavigationState(i);window.scrollTo(0,0);if(i==='sDash'||i==='sCase'||i==='sRes')startParticipantSync();else stopParticipantSync()}
+function show(i){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});$(i).classList.add('active');saveNavigationState(i);window.scrollTo(0,0);if(restoredScrollY!==null){var scrollY=restoredScrollY;restoredScrollY=null;setTimeout(function(){window.scrollTo(0,scrollY)},0)}if(i==='sDash'||i==='sCase'||i==='sRes')startParticipantSync();else stopParticipantSync()}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(m,t){t=t||'info';var c={ok:'t-ok',err:'t-err',info:'t-info',warn:'t-warn'}[t]||'t-info';var e=document.createElement('div');e.className='toast '+c;e.textContent=m;$('toasts').appendChild(e);setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3500)}
 function fmtDate(iso){if(!iso)return'—';try{return new Date(iso).toLocaleString('pt-BR')}catch(e){return'—'}}
@@ -1545,6 +1548,7 @@ async function init(){
     setupQrParticipante();
     try{if(sessionStorage.getItem('clinicalcases-language')==='en')setLanguage('en')}catch(e){}
     try{restoredNavigation=JSON.parse(sessionStorage.getItem('clinicalcases-navigation')||'null')}catch(e){restoredNavigation=null}
+    try{var savedScrollY=sessionStorage.getItem('clinicalcases-scroll-y');if(savedScrollY!==null)restoredScrollY=Math.max(0,parseInt(savedScrollY,10)||0)}catch(e){restoredScrollY=null}
     if(restoredNavigation&&restoredNavigation.screen==='sDash'&&restoredNavigation.pName){
         pName=restoredNavigation.pName;
         vCase=typeof restoredNavigation.vCase==='number'?restoredNavigation.vCase:-1;
